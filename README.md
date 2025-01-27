@@ -215,17 +215,17 @@ README.md
 ```
 
 - **hydrapetv12/**
- - **main/**: Contains all source (`.c`) and header (`.h`) files for the project, organized by functionality.
-   - **main.c**: Entry point of the application.
-   - **config.h**: Configuration parameters for the project.
-   - **mqtt.c & mqtt.h**: MQTT client implementation and interface.
-   - **wifi.c & wifi.h**: Wi-Fi connectivity implementation and interface.
-   - **motor.c & motor.h**: Motor control implementation and interface.
-   - **alarms.c & alarms.h**: Alarm management implementation and interface.
-   - **water_level_sensor.c & water_level_sensor.h**: Water level sensor implementation and interface.
-   - **led.c & led.h**: LED control implementation and interface.
-   - **buttons.c & buttons.h**: Button handling implementation and interface.
-   - **CMakeLists.txt & Makefile**: Build configuration files for compiling the project.
+   - **main/**: Contains all source (`.c`) and header (`.h`) files for the project, organized by functionality.
+     - **main.c**: Entry point of the application.
+     - **config.h**: Configuration parameters for the project.
+     - **mqtt.c & mqtt.h**: MQTT client implementation and interface.
+     - **wifi.c & wifi.h**: Wi-Fi connectivity implementation and interface.
+     - **motor.c & motor.h**: Motor control implementation and interface.
+     - **alarms.c & alarms.h**: Alarm management implementation and interface.
+     - **water_level_sensor.c & water_level_sensor.h**: Water level sensor implementation and interface.
+     - **led.c & led.h**: LED control implementation and interface.
+     - **buttons.c & buttons.h**: Button handling implementation and interface.
+     - **CMakeLists.txt & Makefile**: Build configuration files for compiling the project.
 - **README.md**: Project documentation.
 
 ## Troubleshooting
