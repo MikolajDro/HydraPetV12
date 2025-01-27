@@ -15,7 +15,6 @@ HYDRAPET is a smart water dispensing system built using the ESP32 microcontrolle
 7. [Project Structure](#project-structure)
 8. [Troubleshooting](#troubleshooting)
 9. [Contributing](#contributing)
-10. [License](#license)
 11. [Contact](#contact)
 
 ---
@@ -399,7 +398,6 @@ hydrapet/
 - **buttons.c / buttons.h:** Handles button inputs for user interactions.
 - **CMakeLists.txt:** Build configuration for ESP-IDF.
 - **MQTT_Topics_Documentation.md:** Detailed documentation of MQTT topics and their usage.
-- **LICENSE:** Licensing information.
 
 ---
 
@@ -473,7 +471,7 @@ This project is licensed under the [MIT License](./LICENSE).
 
 ## Contact
 
-For any questions, issues, or feature requests, please open an issue on the [GitHub repository](https://github.com/yourusername/hydrapet/issues) or contact the maintainer at [your.email@example.com](mailto:your.email@example.com).
+For any questions, issues, or feature requests, please open an issue on the [GitHub repository](https://github.com/yourusername/hydrapet/issues) or contact the maintainer at mikolajdrozdz1@gmail.com.
 
 ---
 
