@@ -1,490 +1,11 @@
-# HYDRAPET
-
-HYDRAPET is a smart water dispensing system built using the ESP32 microcontroller. It leverages MQTT for seamless communication, enabling remote monitoring and control of water levels, alarms, and other system functionalities. The system integrates various components such as load cells (HX711), motors for water dispensing, LEDs for status indication, and buttons for user interaction.
-
-## Table of Contents
-
-1. [Features](#features)
-2. [Hardware Requirements](#hardware-requirements)
-3. [Software Requirements](#software-requirements)
-4. [Installation](#installation)
-5. [Configuration](#configuration)
-6. [Usage](#usage)
-    - [MQTT Topics](#mqtt-topics)
-    - [Example MQTT Commands](#example-mqtt-commands)
-7. [Project Structure](#project-structure)
-8. [Troubleshooting](#troubleshooting)
-9. [Contributing](#contributing)
-11. [Contact](#contact)
-
----
-
-## Features
-
-- **Remote Time Setting:** Synchronize device time via MQTT.
-- **Water Level Control:** Set and get current water levels remotely.
-- **Alarm Management:** Add, retrieve, and delete alarms for specific water dispensing times.
-- **Automatic Water Dispensing:** Automatically dispense water at scheduled times.
-- **Weight Taring:** Reset the load cell to account for tare weight.
-- **Status Monitoring:** Retrieve comprehensive device status, including button states, LED states, and motor states.
-- **Error Handling:** Notify via MQTT if water dispensing fails.
-
----
-
-## Hardware Requirements
-
-To set up HYDRAPET, you'll need the following hardware components:
-
-- **ESP32 Development Board**
-- **HX711 Load Cell Amplifier Module**
-- **Load Cell (e.g., 5kg)**
-- **Motor (for water dispensing)**
-- **LEDs (for status indication)**
-- **Push Buttons (for user interaction)**
-- **Power Supply (appropriate for ESP32 and peripherals)**
-- **Connecting Wires and Breadboard (for prototyping)**
-- **Optional:** Enclosure for housing components
-
-### Pin Configuration
-
-Ensure the following pin connections between the ESP32 and peripherals:
-
-- **HX711:**
-  - `DT` to GPIO XX
-  - `SCK` to GPIO YY
-- **Motor:**
-  - Control pins to GPIO AA and BB
-- **LEDs:**
-  - Anode to GPIO CC through a resistor
-  - Cathode to GND
-- **Buttons:**
-  - One side to GPIO DD
-  - Other side to GND
-
-*Replace `XX`, `YY`, `AA`, `BB`, `CC`, and `DD` with actual GPIO numbers based on your setup.*
-
----
-
-## Software Requirements
-
-- **ESP-IDF (Espressif IoT Development Framework)**
-- **CMake and Ninja Build Systems**
-- **Python 3.x**
-- **Git**
-- **MQTT Broker (e.g., Mosquitto)**
-- **Optional:** MQTT client tools like `mosquitto_pub` and `mosquitto_sub` for testing
-
-### Installing ESP-IDF
-
-Follow the official [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/) to install the development environment.
-
----
-
-## Installation
-
-1. **Clone the Repository**
-
-   ```bash
-   git clone https://github.com/yourusername/hydrapet.git
-   cd hydrapet
-   ```
-
-2. **Set Up ESP-IDF Environment**
-
-   Source the ESP-IDF environment script:
-
-   ```bash
-   source $HOME/esp/esp-idf/export.sh
-   ```
-
-3. **Build the Project**
-
-   ```bash
-   idf.py build
-   ```
-
-4. **Flash the Firmware to ESP32**
-
-   Connect your ESP32 board via USB and execute:
-
-   ```bash
-   idf.py -p /dev/ttyUSB0 flash
-   ```
-
-   *Replace `/dev/ttyUSB0` with the appropriate serial port.*
-
-5. **Monitor the Logs**
-
-   ```bash
-   idf.py -p /dev/ttyUSB0 monitor
-   ```
-
----
-
-## Configuration
-
-### MQTT Broker Setup
-
-HYDRAPET communicates using MQTT. You can use a public broker like `test.mosquitto.org` for testing or set up a private broker for production.
-
-**Using Mosquitto Broker:**
-
-- **Install Mosquitto:**
-
-  ```bash
-  sudo apt-get update
-  sudo apt-get install mosquitto mosquitto-clients
-  ```
-
-- **Start Mosquitto Service:**
-
-  ```bash
-  sudo systemctl start mosquitto
-  ```
-
-- **Enable Mosquitto to Start on Boot:**
-
-  ```bash
-  sudo systemctl enable mosquitto
-  ```
-
-### Configure MQTT Broker in Code
-
-Edit the `mqtt.c` file to set your MQTT broker address:
-
-```c
-// mqtt.c
-
-esp_mqtt_client_config_t mqtt_cfg = {
-    .broker = {
-        .address.uri = "mqtt://your_broker_address:1883", // Replace with your broker
-    },
-};
-```
-
-Rebuild and flash the firmware after making changes.
-
----
-
-## Usage
-
-HYDRAPET uses various MQTT topics to interact with the device. Below is a detailed description of each topic along with example commands.
-
-### MQTT Topics
-
-Refer to the [HYDRAPET MQTT Topics Documentation](./MQTT_Topics_Documentation.md) for comprehensive details on each topic.
-
-### Example MQTT Commands
-
-Below are examples of how to interact with HYDRAPET using MQTT commands via `mosquitto_pub` and `mosquitto_sub`.
-
-#### 1. Set System Time
-
-**Topic:** `hydrapet0001/update/set/time`
-
-**Payload:**
-
-```json
-{
-    "timestamp": "2025-01-26T14:30:00"
-}
-```
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/time" -m '{"timestamp": "2025-01-26T14:30:00"}'
-```
-
-#### 2. Get System Time
-
-**Topic:** `hydrapet0001/update/get/time`
-
-**Payload:** None
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/time" -n
-```
-
-**Subscribe to Receive Response:**
-
-```bash
-mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/time"
-```
-
-#### 3. Set Water Level
-
-**Topic:** `hydrapet0001/update/set/water`
-
-**Payload:**
-
-```
-250
-```
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/water" -m "250"
-```
-
-#### 4. Get Water Level
-
-**Topic:** `hydrapet0001/update/get/water`
-
-**Payload:** None
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/water" -n
-```
-
-**Subscribe to Receive Response:**
-
-```bash
-mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/water"
-```
-
-#### 5. Get Device Status
-
-**Topic:** `hydrapet0001/update/get/status`
-
-**Payload:** None
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/status" -n
-```
-
-**Subscribe to Receive Response:**
-
-```bash
-mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/status"
-```
-
-#### 6. Add an Alarm
-
-**Topic:** `hydrapet0001/update/set/alarm`
-
-**Payload:**
-
-```json
-{
-    "timestamp": "2025-01-27T10:00:00",
-    "target_weight": 200
-}
-```
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/alarm" -m '{"timestamp": "2025-01-27T10:00:00", "target_weight": 200}'
-```
-
-#### 7. Get All Alarms
-
-**Topic:** `hydrapet0001/update/get/alarms`
-
-**Payload:** None
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/alarms" -n
-```
-
-**Subscribe to Receive Response:**
-
-```bash
-mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/alarms"
-```
-
-#### 8. Delete an Alarm
-
-**Topic:** `hydrapet0001/update/del/alarm`
-
-**Payload:**
-
-```json
-{
-    "timestamp": "2025-01-27T10:00:00"
-}
-```
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/del/alarm" -m '{"timestamp": "2025-01-27T10:00:00"}'
-```
-
-#### 9. Pour Water to Specific Weight
-
-**Topic:** `hydrapet0001/update/put/pourwater`
-
-**Payload:**
-
-```
-250
-```
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/put/pourwater" -m "250"
-```
-
-**Or in JSON Format:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/put/pourwater" -m '{"target_weight": 250}'
-```
-
-#### 10. Set Tare
-
-**Topic:** `hydrapet0001/update/set/tare`
-
-**Payload:** Any value (e.g., `1` or `"tare"`)
-
-**Command:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/tare" -m "1"
-```
-
-**Or:**
-
-```bash
-mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/tare" -m "tare"
-```
-
----
-
-## Project Structure
-
-```
-hydrapet/
-├── main/
-│   ├── main.c
-│   ├── mqtt.c
-│   ├── mqtt.h
-│   ├── alarms.c
-│   ├── alarms.h
-│   ├── hx711.c
-│   ├── hx711.h
-│   ├── motor.c
-│   ├── motor.h
-│   ├── led.c
-│   ├── led.h
-│   ├── buttons.c
-│   ├── buttons.h
-│   ├── ...
-├── CMakeLists.txt
-├── README.md
-├── MQTT_Topics_Documentation.md
-├── LICENSE
-└── ...
-```
-
-- **main.c:** Entry point of the application, initializes modules and starts tasks.
-- **mqtt.c / mqtt.h:** Handles MQTT communication, subscribing to topics and publishing messages.
-- **alarms.c / alarms.h:** Manages alarm creation, deletion, and monitoring.
-- **hx711.c / hx711.h:** Interfaces with the HX711 load cell for weight measurements and tare functionality.
-- **motor.c / motor.h:** Controls the motor responsible for dispensing water.
-- **led.c / led.h:** Manages LED indicators for system status.
-- **buttons.c / buttons.h:** Handles button inputs for user interactions.
-- **CMakeLists.txt:** Build configuration for ESP-IDF.
-- **MQTT_Topics_Documentation.md:** Detailed documentation of MQTT topics and their usage.
-
----
-
-## Troubleshooting
-
-- **Cannot Connect to Wi-Fi:**
-  - Verify Wi-Fi credentials in your code.
-  - Ensure ESP32 is within range of the Wi-Fi router.
-  - Check for interference or network issues.
-
-- **MQTT Connection Issues:**
-  - Ensure the MQTT broker address and port are correct.
-  - Verify network connectivity.
-  - Check broker logs for any connection refusals or errors.
-
-- **Unexpected Weight Readings:**
-  - Calibrate the HX711 load cell.
-  - Ensure the load cell is properly connected and not overloaded.
-  - Verify the tare functionality is working correctly.
-
-- **Motor Not Dispensing Water:**
-  - Check motor connections and power supply.
-  - Ensure motor control pins are correctly configured.
-  - Verify motor is functional by testing manually.
-
-- **LEDs Not Indicating Status:**
-  - Check LED connections and resistor values.
-  - Ensure correct GPIO pins are used in the code.
-
-- **Alarms Not Triggering:**
-  - Verify system time is correctly set.
-  - Ensure alarms are added with correct timestamps.
-  - Check logs for any errors related to alarm management.
-
----
-
-## Contributing
-
-Contributions are welcome! To contribute to HYDRAPET:
-
-1. **Fork the Repository**
-2. **Create a New Branch**
-
-   ```bash
-   git checkout -b feature/YourFeature
-   ```
-
-3. **Commit Your Changes**
-
-   ```bash
-   git commit -m "Add your feature"
-   ```
-
-4. **Push to the Branch**
-
-   ```bash
-   git push origin feature/YourFeature
-   ```
-
-5. **Open a Pull Request**
-
-Please ensure your code follows the project's coding standards and includes appropriate comments and documentation.
-
----
-
-## License
-
-This project is licensed under the [MIT License](./LICENSE).
-
----
-
-## Contact
-
-For any questions, issues, or feature requests, please open an issue on the [GitHub repository](https://github.com/yourusername/hydrapet/issues) or contact the maintainer at mikolajdrozdz1@gmail.com.
-
----
-
-# MQTT_Topics_Documentation.md
-
 # HYDRAPET MQTT Topics Documentation
 
-This documentation provides detailed information about the MQTT topics used in the HYDRAPET project. Each topic serves a specific purpose, enabling remote control and monitoring of the HYDRAPET system.
+This documentation provides a comprehensive overview of all MQTT topics utilized in the HYDRAPET project. It categorizes the topics based on their roles—**Subscribed Topics** (topics the device listens to) and **Published Topics** (topics the device sends messages to). Each topic includes a description, payload format, and example commands for ease of use.
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [List of MQTT Topics](#list-of-mqtt-topics)
+2. [Subscribed MQTT Topics](#subscribed-mqtt-topics)
     - [1. `hydrapet0001/update/set/time`](#1-hydrapet0001updatesettime)
     - [2. `hydrapet0001/update/get/time`](#2-hydrapet0001updategettime)
     - [3. `hydrapet0001/update/set/water`](#3-hydrapet0001updatesetwater)
@@ -495,18 +16,23 @@ This documentation provides detailed information about the MQTT topics used in t
     - [8. `hydrapet0001/update/del/alarm`](#8-hydrapet0001updatedelalarm)
     - [9. `hydrapet0001/update/put/pourwater`](#9-hydrapet0001updateputpourwater)
     - [10. `hydrapet0001/update/set/tare`](#10-hydrapet0001updatesettare)
-3. [Example MQTT Commands](#example-mqtt-commands)
-4. [Notes](#notes)
+3. [Published MQTT Topics](#published-mqtt-topics)
+    - [1. `hydrapet0001/hydrapetinfo/watertanklevel`](#1-hydrapet0001hydrapetinfowatertanklevel)
+    - [2. `hydrapet0001/hydrapetinfo/watertank`](#2-hydrapet0001hydrapetinfowatertank)
+4. [Example MQTT Commands](#example-mqtt-commands)
+5. [Notes](#notes)
 
 ---
 
 ## Overview
 
-HYDRAPET utilizes MQTT (Message Queuing Telemetry Transport) for lightweight, efficient communication between the ESP32-based device and external clients or controllers. The system subscribes to specific topics to receive commands and publishes status updates or responses on other topics.
+HYDRAPET leverages MQTT (Message Queuing Telemetry Transport) for efficient and lightweight communication between the ESP32-based device and external clients or controllers. The system subscribes to specific topics to receive commands and publishes messages to other topics to relay status updates and alerts.
 
 ---
 
-## List of MQTT Topics
+## Subscribed MQTT Topics
+
+Subscribed topics are those that HYDRAPET listens to for receiving commands or requests from external clients.
 
 ### 1. `hydrapet0001/update/set/time`
 
@@ -546,7 +72,7 @@ Sets the system time of the HYDRAPET device.
 
 **Device Response:**
 
-- Logs indicating time has been set successfully or errors if the format is incorrect.
+- Logs indicating successful time setting or errors if the format is incorrect.
 
 ---
 
@@ -838,9 +364,90 @@ Resets the load cell's tare weight, calibrating the system to the current state 
 
 ---
 
+## Published MQTT Topics
+
+Published topics are those that HYDRAPET sends messages to, providing status updates, alerts, or other relevant information.
+
+### 1. `hydrapet0001/hydrapetinfo/watertanklevel`
+
+**Description:**
+
+Publishes the current status of the water tank level. The message will be:
+
+- `"Below 30%"` if the variable `s_water_level_state` is `0`.
+- `"Water tank is full"` otherwise.
+
+**Payload Formats:**
+
+- **Plain Text:**
+
+    ```
+    Below 30%
+    ```
+
+    or
+
+    ```
+    Water tank is full
+    ```
+
+**Automatic Publishing:**
+
+The system automatically publishes to this topic based on the state of `s_water_level_state`. This can be configured to occur at regular intervals (e.g., every minute) or triggered by specific events such as changes in water level.
+
+**Example Messages:**
+
+- **Below 30%:**
+
+    ```bash
+    mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertanklevel" -m "Below 30%"
+    ```
+
+- **Water Tank is Full:**
+
+    ```bash
+    mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertanklevel" -m "Water tank is full"
+    ```
+
+**Use Case:**
+
+Subscribers can monitor this topic to receive real-time updates on the water tank's status, enabling timely actions such as refilling or alerting users.
+
+---
+
+### 2. `hydrapet0001/hydrapetinfo/watertank`
+
+**Description:**
+
+Publishes alerts related to the water tank status, particularly when dispensing fails.
+
+**Payload Formats:**
+
+- **Plain Text:**
+
+    ```
+    empty
+    ```
+
+**Device Response:**
+
+- Publishes `"empty"` when the dispensing process fails, indicating that the water tank might be empty or the dispensing mechanism is malfunctioning.
+
+**Example Message:**
+
+```bash
+mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertank" -m "empty"
+```
+
+**Use Case:**
+
+Subscribers can listen to this topic to receive critical alerts regarding the water tank's condition, ensuring immediate attention to potential issues.
+
+---
+
 ## Example MQTT Commands
 
-Below are example commands using `mosquitto_pub` and `mosquitto_sub` to interact with HYDRAPET.
+Below are examples of how to interact with HYDRAPET using MQTT commands via `mosquitto_pub` and `mosquitto_sub`.
 
 ### 1. Subscribe to Receive All Responses
 
@@ -852,17 +459,35 @@ mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/#"
 
 ### 2. Set System Time
 
+**Command:**
+
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/time" -m '{"timestamp": "2025-01-26T14:30:00"}'
 ```
 
+**Or:**
+
+```bash
+mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/time" -m "2025-01-26T14:30:00"
+```
+
 ### 3. Get System Time
+
+**Command:**
 
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/time" -n
 ```
 
+**Subscribe to Receive Response:**
+
+```bash
+mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/time"
+```
+
 ### 4. Set Water Level
+
+**Command:**
 
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/water" -m "250"
@@ -870,17 +495,35 @@ mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/water" -m "250
 
 ### 5. Get Water Level
 
+**Command:**
+
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/water" -n
 ```
 
+**Subscribe to Receive Response:**
+
+```bash
+mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/water"
+```
+
 ### 6. Get Device Status
+
+**Command:**
 
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/status" -n
 ```
 
+**Subscribe to Receive Response:**
+
+```bash
+mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/status"
+```
+
 ### 7. Add an Alarm
+
+**Command:**
 
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/alarm" -m '{"timestamp": "2025-01-27T10:00:00", "target_weight": 200}'
@@ -888,11 +531,21 @@ mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/alarm" -m '{"t
 
 ### 8. Get All Alarms
 
+**Command:**
+
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/get/alarms" -n
 ```
 
+**Subscribe to Receive Response:**
+
+```bash
+mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/update/get/alarms"
+```
+
 ### 9. Delete an Alarm
+
+**Command:**
 
 ```bash
 mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/del/alarm" -m '{"timestamp": "2025-01-27T10:00:00"}'
@@ -926,20 +579,186 @@ mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/del/alarm" -m '{"t
     mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/update/set/tare" -m "tare"
     ```
 
+### 12. Monitor Water Tank Level
+
+**Subscribe to Water Tank Level:**
+
+```bash
+mosquitto_sub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertanklevel"
+```
+
+**Device Publishes:**
+
+- If `s_water_level_state` is `0`:
+
+    ```
+    Below 30%
+    ```
+
+- Otherwise:
+
+    ```
+    Water tank is full
+    ```
+
+**Example Publish Commands (for testing purposes):**
+
+- **Below 30%:**
+
+    ```bash
+    mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertanklevel" -m "Below 30%"
+    ```
+
+- **Water Tank is Full:**
+
+    ```bash
+    mosquitto_pub -h broker.mosquitto.org -t "hydrapet0001/hydrapetinfo/watertanklevel" -m "Water tank is full"
+    ```
+
 ---
 
 ## Notes
 
-- **Message Formats:** Ensure that the payloads are correctly formatted as per the topic requirements. Incorrect formats may lead to unexpected behavior or errors.
+1. **Message Formats:**
+   - Ensure that the payloads are correctly formatted as per the topic requirements. Incorrect formats may lead to unexpected behavior or errors.
+   - For setting time, water levels, and alarms, JSON format is preferred for clarity and extensibility.
 
-- **Time Synchronization:** For alarm functionalities to work correctly, ensure that the system time is accurately set, preferably using NTP synchronization.
+2. **Water Tank Level Monitoring:**
+   - The `hydrapet0001/hydrapetinfo/watertanklevel` topic provides real-time status of the water tank.
+   - Ensure that `s_water_level_state` is correctly updated in your code based on sensor readings.
 
-- **MQTT Security:** Consider securing your MQTT broker with authentication and encryption (TLS) for production environments to prevent unauthorized access.
+3. **Synchronization of Time:**
+   - Accurate system time is crucial for alarm functionalities. Consider integrating SNTP for automatic time synchronization.
 
-- **Resource Management:** The ESP32 has limited resources. Ensure that your MQTT broker and other services are optimized to handle the expected load.
+4. **MQTT Security:**
+   - Public brokers like `broker.mosquitto.org` are suitable for testing. For production, use a secure, private broker with authentication and TLS encryption.
 
-- **Logging:** Monitor device logs for debugging and to ensure all functionalities are operating as expected.
+5. **Resource Management:**
+   - ESP32 has limited resources. Optimize MQTT message sizes and frequency to prevent resource exhaustion.
 
-- **Extensibility:** The project is modular, allowing for easy addition of new features or integration with other sensors and actuators.
+6. **Error Handling:**
+   - The system logs errors for debugging. Consider adding additional MQTT notifications for critical errors.
+
+7. **Extensibility:**
+   - The modular design allows for easy addition of new features, such as integrating more sensors or actuators.
+
+8. **Testing:**
+   - Thoroughly test each MQTT topic and its corresponding functionality in a controlled environment before deploying to production.
+
+9. **Documentation:**
+   - Keep the documentation updated as new features and topics are added to ensure clarity for users and developers.
 
 ---
+
+## Project Structure
+
+```
+hydrapet/
+├── main/
+│   ├── main.c
+│   ├── mqtt.c
+│   ├── mqtt.h
+│   ├── alarms.c
+│   ├── alarms.h
+│   ├── hx711.c
+│   ├── hx711.h
+│   ├── motor.c
+│   ├── motor.h
+│   ├── led.c
+│   ├── led.h
+│   ├── buttons.c
+│   ├── buttons.h
+│   ├── water_level.c
+│   ├── water_level.h
+│   ├── ...
+├── CMakeLists.txt
+├── README.md
+├── MQTT_Topics_Documentation.md
+├── LICENSE
+└── ...
+```
+
+- **main.c:** Entry point of the application, initializes modules and starts tasks.
+- **mqtt.c / mqtt.h:** Handles MQTT communication, subscribing to topics and publishing messages.
+- **alarms.c / alarms.h:** Manages alarm creation, deletion, and monitoring.
+- **hx711.c / hx711.h:** Interfaces with the HX711 load cell for weight measurements and tare functionality.
+- **motor.c / motor.h:** Controls the motor responsible for dispensing water.
+- **led.c / led.h:** Manages LED indicators for system status.
+- **buttons.c / buttons.h:** Handles button inputs for user interactions.
+- **water_level.c / water_level.h:** Monitors and updates the water tank level status.
+- **CMakeLists.txt:** Build configuration for ESP-IDF.
+- **README.md:** Project overview and setup instructions.
+- **MQTT_Topics_Documentation.md:** Detailed documentation of MQTT topics and their usage.
+- **LICENSE:** Licensing information.
+
+---
+
+## Troubleshooting
+
+- **Cannot Connect to Wi-Fi:**
+  - Verify Wi-Fi credentials in your code.
+  - Ensure ESP32 is within range of the Wi-Fi router.
+  - Check for interference or network issues.
+
+- **MQTT Connection Issues:**
+  - Ensure the MQTT broker address and port are correct.
+  - Verify network connectivity.
+  - Check broker logs for any connection refusals or errors.
+
+- **Unexpected Weight Readings:**
+  - Calibrate the HX711 load cell.
+  - Ensure the load cell is properly connected and not overloaded.
+  - Verify the tare functionality is working correctly.
+
+- **Motor Not Dispensing Water:**
+  - Check motor connections and power supply.
+  - Ensure motor control pins are correctly configured.
+  - Verify motor is functional by testing manually.
+
+- **LEDs Not Indicating Status:**
+  - Check LED connections and resistor values.
+  - Ensure correct GPIO pins are used in the code.
+
+- **Alarms Not Triggering:**
+  - Verify system time is correctly set.
+  - Ensure alarms are added with correct timestamps.
+  - Check logs for any errors related to alarm management.
+
+- **Water Tank Level Not Publishing Correct Status:**
+  - Ensure `s_water_level_state` is correctly updated in the code based on sensor readings.
+  - Verify the publishing function is being called appropriately.
+
+---
+
+## Contributing
+
+Contributions are welcome! To contribute to HYDRAPET:
+
+1. **Fork the Repository**
+2. **Create a New Branch**
+
+    ```bash
+    git checkout -b feature/YourFeature
+    ```
+
+3. **Commit Your Changes**
+
+    ```bash
+    git commit -m "Add your feature"
+    ```
+
+4. **Push to the Branch**
+
+    ```bash
+    git push origin feature/YourFeature
+    ```
+
+5. **Open a Pull Request**
+
+Please ensure your code follows the project's coding standards and includes appropriate comments and documentation.
+
+---
+
+## Contact
+
+For any questions, issues, or feature requests, please open an issue on the [GitHub repository](https://github.com/yourusername/hydrapet/issues).
