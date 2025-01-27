@@ -1,0 +1,162 @@
+// mqtt.c
+
+#include "mqtt.h"
+#include "mqtt_client.h"
+#include "esp_log.h"
+#include <string.h>
+#include <stdlib.h>
+
+static const char *TAG = "MQTT";
+
+static esp_mqtt_client_handle_t mqtt_client = NULL;
+
+// Callback globalny do obsługi wiadomości
+static mqtt_callback_t global_mqtt_callback = NULL;
+
+/**
+ * @brief Handler eventów MQTT
+ *
+ * @param handler_args Argument handlera
+ * @param base Podstawa eventu
+ * @param event_id ID eventu
+ * @param event_data Dane eventu
+ */
+static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+    esp_mqtt_event_handle_t event = event_data;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            // Subskrybujemy tematy po połączeniu
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/set/time", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/time", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/set/water", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/water", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/status", 0);
+            ESP_LOGI(TAG, "Subskrybowanie tematów MQTT zakończone");
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_DATA:
+            // Obsługa odebranych danych
+            if (global_mqtt_callback != NULL) {
+                // Kopiowanie tematu i wiadomości do bufora
+                char topic[128];
+                char message[256];
+                memset(topic, 0, sizeof(topic));
+                memset(message, 0, sizeof(message));
+
+                // Kopiujemy temat
+                strncpy(topic, event->topic, event->topic_len);
+                topic[event->topic_len] = '\0';
+
+                // Kopiujemy wiadomość
+                strncpy(message, event->data, event->data_len);
+                message[event->data_len] = '\0';
+
+                // Wywołujemy callbacka
+                global_mqtt_callback(topic, message);
+            }
+            break;
+        // Obsługa innych eventów w razie potrzeby
+        default:
+            break;
+    }
+}
+
+void mqtt_init(void)
+{
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            .address = {
+                .uri = "mqtt://test.mosquitto.org:1883", // Zmień na własny broker
+            },
+        },
+    };
+
+    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize MQTT client");
+        return;
+    }
+
+    esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler_cb, NULL);
+    esp_mqtt_client_start(mqtt_client);
+    ESP_LOGI(TAG, "MQTT initialized.");
+}
+
+void mqtt_publish_all(int32_t weight, struct tm timestamp, bool button_state, bool led_state, bool pin15_state)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[300]; // Zwiększamy rozmiar, aby pomieścić wszystkie dane
+
+    // Topic: hydrapet/get/all
+    snprintf(topic, sizeof(topic), "hydrapet/get/all");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload),
+             "{\"weight\": %ld, \"timestamp\": \"%04d-%02d-%02dT%02d:%02d:%02d\", \"button_state\": \"%s\", \"led_state\": \"%s\", \"pin15_state\": \"%s\"}",
+             weight,
+             timestamp.tm_year + 1900, timestamp.tm_mon + 1, timestamp.tm_mday,
+             timestamp.tm_hour, timestamp.tm_min, timestamp.tm_sec,
+             button_state ? "PRESSED" : "RELEASED",
+             led_state ? "ON" : "OFF",
+             pin15_state ? "HIGH" : "LOW");
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_publish_water_state(int water_state)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[50];
+
+    // Topic: hydrapet0001/hydrapetinfo/water
+    snprintf(topic, sizeof(topic), "hydrapet0001/hydrapetinfo/water");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload), "{\"water_state\": %d}", water_state);
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_publish_current_time(struct tm timestamp)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[100];
+
+    // Topic: hydrapet0001/hydrapetinfo/time
+    snprintf(topic, sizeof(topic), "hydrapet0001/hydrapetinfo/time");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload), "{\"current_time\": \"%04d-%02d-%02dT%02d:%02d:%02d\"}",
+             timestamp.tm_year + 1900, timestamp.tm_mon + 1, timestamp.tm_mday,
+             timestamp.tm_hour, timestamp.tm_min, timestamp.tm_sec);
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_set_message_callback(void (*callback)(const char *, const char *))
+{
+    global_mqtt_callback = callback;
+    ESP_LOGI(TAG, "MQTT message callback set.");
+}

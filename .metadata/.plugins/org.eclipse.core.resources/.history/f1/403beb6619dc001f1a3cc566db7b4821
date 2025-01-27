@@ -1,0 +1,69 @@
+#include "buttons.h"
+#include "led.h"
+#include "wifi.h"
+#include "esp_log.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "main.h"
+
+static const char *TAG = "BUTTONS";
+
+
+#define BUTTON_PAIR_PIN 10
+
+static bool s_pair_state = false;  // false - released, true - pressed
+
+bool pair_button_state(void)
+{
+    return s_pair_state;
+}
+
+void buttons_init(void)
+{
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << BUTTON_PAIR_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = true,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf);
+    ESP_LOGI(TAG, "Buttons initialized.");
+}
+
+void buttons_task(void *arg)
+{
+    bool last_state = true; // assume pulled-up
+
+    while (1) {
+        bool current_state = (gpio_get_level(BUTTON_PAIR_PIN) == 0) ? true : false;
+        if (current_state != last_state) {
+            // Detekcja zmiany stanu
+            if (current_state == true) {
+                ESP_LOGI(TAG, "Pair Button PRESSED!");
+
+                // Uruchamiamy miganie diodą w osobnym tasku (co 500 ms)
+                // lub dynamicznie tworzymy task do migania
+                xTaskCreate(led_blink_task, "led_blink", 2048, NULL, 5, NULL);
+
+				if(!is_wifi_connected()){
+	                // Ponowna próba połączenia z internetem
+	                bool connected = wifi_reconnect();
+	                if (connected) {
+	                    ESP_LOGI(TAG, "Udało się połączyć ponownie z Wi-Fi");
+	                } else {
+	                    ESP_LOGI(TAG, "Nie udało się połączyć z Wi-Fi (ponowna próba)");
+	                }
+	            }
+
+            } else {
+                ESP_LOGI(TAG, "Pair Button RELEASED!");
+            }
+            last_state = current_state;
+            s_pair_state = current_state;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}

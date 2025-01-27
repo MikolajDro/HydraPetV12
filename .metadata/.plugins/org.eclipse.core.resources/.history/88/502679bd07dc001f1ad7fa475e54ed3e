@@ -1,0 +1,204 @@
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+#include "esp_log.h"
+#include "esp_system.h"
+#include "driver/gpio.h"
+#include "nvs_flash.h"
+#include "esp_event.h"
+#include "esp_wifi.h"
+
+#include "mqtt.h"         // Twój moduł MQTT
+#include "hx711.h"        // Odczyt wagi
+#include "led.h"          // Zarządzanie diodą (led_init, led_set_state itp.)
+#include "buttons.h"      // Odczyt stanu przycisków
+#include "driver/uart.h"  // Jeśli używasz UART
+#include "wifi.h"
+#include "motor.h"
+
+static const char *TAG = "MAIN";
+
+// Definicje pinów (jeśli nie masz w sdkconfig)
+#define BUTTON_MQTT_PIN  GPIO_NUM_4  // Przycisk do MQTT (lub inny)
+#define BUTTON_PAIR_PIN  GPIO_NUM_10  // Przycisk pair (zamiast LED)
+
+// Zmienna globalna do śledzenia stanu diody (ON/OFF)
+static bool led_state = false;
+
+// Zmienna do śledzenia stanu połączenia z Wi-Fi
+static bool wifi_connected = false;
+
+// Funkcja do sprawdzenia czy jesteśmy połączeni z Wi-Fi
+bool is_wifi_connected(void)
+{
+    // Tu wstaw logikę sprawdzania statusu Wi-Fi (np. eventy, flaga)
+    // Załóżmy, że mamy zmienną globalną wifi_connected
+    return wifi_connected;
+}
+
+
+
+// Zadanie do publikowania danych co 10 sekund
+static void publish_task(void *pvParameters)
+{
+    while (true)
+    {
+        // Sprawdź, czy jesteśmy połączeni do Wi-Fi
+        if (!is_wifi_connected())
+        {
+            // Jeśli nie ma połączenia – nie rób nic, ewentualnie:
+            ESP_LOGW(TAG, "Brak połączenia z Wi-Fi, czekam...");
+            vTaskDelay(pdMS_TO_TICKS(2000)); // czekaj 2s i sprawdź znowu
+            continue;
+        }
+
+        // Jesteśmy połączeni, odczytujemy dane
+        int32_t weight = get_water_weight();  // z HX711
+        time_t now = 0;
+        time(&now);
+        struct tm timeinfo = {0};
+        localtime_r(&now, &timeinfo);
+
+        // Stan przycisków
+        bool mqtt_button_state = (gpio_get_level(BUTTON_MQTT_PIN) == 0); // załóżmy że 0 = wciśnięty
+        bool pair_button_state = (gpio_get_level(BUTTON_PAIR_PIN) == 0);
+
+        // Stan diody
+        bool current_led_state = led_state;  // Jeśli przechowujesz w globalnej
+
+        // Stan pinu 15 (motor)
+        bool motor_state = get_motor_state();
+
+        // Składamy payload JSON (lub dowolny format)
+        char payload[200];
+        snprintf(payload, sizeof(payload),
+            "{"
+            "\"weight\": %ld,"
+            "\"time\":\"%04d-%02d-%02dT%02d:%02d:%02d\","
+            "\"mqtt_button\": %d,"
+            "\"pair_button\": %d,"
+            "\"led_state\": %d,"
+            "\"motor\": %d"
+            "}",
+            weight,
+            timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+            timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec,
+            mqtt_button_state ? 1 : 0,
+            pair_button_state ? 1 : 0,
+            current_led_state ? 1 : 0,
+            motor_state ? 1 : 0
+        );
+
+        ESP_LOGI(TAG, "Publikowanie: %s", payload);
+
+        // Wysyłamy na topic "hydrapet/get/all"
+        mqtt_publish_all(weight, 
+        				timeinfo, 
+        				mqtt_button_state ? 1 : 0, 
+        				current_led_state ? 1 : 0, 
+        				motor_state ? 1 : 0);
+
+
+        // Publikujemy stan wody na temat hydrapet0001/hydrapetinfo/water
+        mqtt_publish_water_state(weight);
+
+        // Publikujemy aktualny czas na temat hydrapet0001/hydrapetinfo/time
+        mqtt_publish_current_time(timeinfo);
+
+        // Po publikacji mignij diodą
+        led_blink_once();
+
+        // Czekaj 10 sekund
+        vTaskDelay(pdMS_TO_TICKS(10000));
+    }
+}
+
+// Obsługa przycisku pair – po wciśnięciu miga diodą co 500 ms i próbuje ponownie Wi-Fi
+static void pair_button_task(void *pvParameters)
+{
+    bool prev_state = true; // Załóżmy pull-up = 1 (niewciśnięty)
+    while (true)
+    {
+        bool current_state = (gpio_get_level(BUTTON_PAIR_PIN) == 0);
+        if (current_state && !prev_state)
+        {
+            // Wciśnięto przycisk (zbocze opadające)
+            ESP_LOGI(TAG, "Pair button pressed – miganie i ponowna próba Wi-Fi");
+            // Miga diodą co 500 ms
+            led_blink_pair();
+            // Próba ponownego połączenia z Wi-Fi
+            // np.:
+            wifi_connected = wifi_init_sta(); // lub inna funkcja do ponownego łączenia
+        }
+        prev_state = current_state;
+
+        vTaskDelay(pdMS_TO_TICKS(50)); // proste odpytywanie co 50ms
+    }
+}
+
+void app_main(void)
+{
+    // Inicjalizacja NVS (potrzebne do Wi-Fi)
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+        ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
+    // Inicjalizacja Wi-Fi
+    // Załóżmy, że wifi_init() ustawia zmienną globalną wifi_connected = true, gdy się powiedzie
+    wifi_connected = wifi_init_sta();
+
+    // Sprawdź, czy udało się połączyć z Wi-Fi
+    // Jeśli nie, pętla – nic nie rób
+    if (!is_wifi_connected())
+    {
+        ESP_LOGW(TAG, "Nie udało się połączyć z Wi-Fi – nic nie robię");
+        while (1)
+        {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
+
+    // Inicjalizacja MQTT
+    mqtt_init();
+
+    // Inicjalizacja diody
+    led_init();
+    led_set_state(false);
+    
+    motor_init();
+
+    // Inicjalizacja przycisków
+    buttons_init(); // w buttons.c np. skonfiguruj piny BUTTON_MQTT_PIN i BUTTON_PAIR_PIN
+
+    // Inicjalizacja HX711
+    hx711_init();
+    tare(); 
+
+    // Utworzenie zadań
+    // 1) Zadanie publikujące co 10 sekund
+    xTaskCreate(publish_task, "publish_task", 4096, NULL, 5, NULL);
+
+
+    // Ustawiamy callback do obsługi odebranych wiadomości MQTT
+    mqtt_set_message_callback(mqtt_message_handler);
+
+    // 2) Zadanie obsługujące przycisk pair
+    xTaskCreate(pair_button_task, "pair_button_task", 2048, NULL, 5, NULL);
+    
+    // Główna pętla nie robi nic – wszystko jest w zadaniach
+    while (1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}

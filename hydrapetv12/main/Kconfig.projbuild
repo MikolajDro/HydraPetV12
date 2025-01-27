@@ -1,0 +1,69 @@
+menu "Project Configuration"
+
+    # Konfiguracja Wi-Fi
+    config EXAMPLE_WIFI_SSID
+        string "WiFi SSID"
+        default "Twoja_siec_wifi"
+        help
+            Nazwa sieci Wi-Fi, do której ESP32 ma się połączyć.
+
+    config EXAMPLE_WIFI_PASS
+        string "WiFi Password"
+        default "Twoje_haslo_wifi"
+        help
+            Hasło do sieci Wi-Fi.
+
+    config EXAMPLE_ESP_MAXIMUM_RETRY
+        int "Maximum WiFi Retry Number"
+        range 0 10
+        default 5
+        help
+            Maksymalna liczba prób ponownego połączenia z Wi-Fi.
+
+    # Konfiguracja diody LED
+    config LED_PIN
+        int "LED GPIO number"
+        range 0 39
+        default 2
+        help
+            GPIO number (IOxx) do sterowania diodą LED.
+
+    # Konfiguracja przycisków
+    config BUTTON_MQTT_PIN
+        int "Button MQTT GPIO number"
+        range 0 39
+        default 6
+        help
+            GPIO number (IOxx) do przycisku MQTT.
+
+    config BUTTON_LED_PIN
+        int "Button LED GPIO number"
+        range 0 39
+        default 7
+        help
+            GPIO number (IOxx) do przycisku LED.
+
+    # Konfiguracja HX711
+    config HX711_DATA_PIN
+        int "HX711 DATA GPIO number"
+        range 0 39
+        default 4
+        help
+            GPIO number (IOxx) do pinu DATA HX711.
+
+    config HX711_SCK_PIN
+        int "HX711 SCK GPIO number"
+        range 0 39
+        default 5
+        help
+            GPIO number (IOxx) do pinu SCK HX711.
+
+    # Konfiguracja migania LED
+    config BLINK_PERIOD
+        int "Blink period in ms"
+        range 10 3600000
+        default 1000
+        help
+            Definiuje okres migania diody LED w milisekundach.
+
+endmenu

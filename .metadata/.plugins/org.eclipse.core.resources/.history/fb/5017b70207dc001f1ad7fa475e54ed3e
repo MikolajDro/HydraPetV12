@@ -1,0 +1,39 @@
+#include "led.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+
+static const char *TAG = "LED";
+#define LED_PIN 9 
+
+static bool s_led_state = false;
+
+// Zadanie migania diodą co 500 ms
+void led_blink_task(void *pvParameters)
+{
+    while (1) {
+        led_set_state(!s_led_state);
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+
+void led_init(void)
+{
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << LED_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_conf);
+    led_set_state(false);
+    ESP_LOGI(TAG, "LED initialized.");
+}
+
+void led_set_state(bool on)
+{
+    s_led_state = on;
+    gpio_set_level(LED_PIN, on ? 1 : 0);
+}

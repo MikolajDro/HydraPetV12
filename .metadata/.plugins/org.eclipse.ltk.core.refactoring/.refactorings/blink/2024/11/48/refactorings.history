@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Move &apos;partitions.csv&apos; to &apos;blink&apos;" description="Move &apos;partitions.csv&apos; to &apos;blink&apos;" destination="/blink" element1="main/partitions.csv" flags="7" id="org.eclipse.ltk.core.refactoring.move.resources" resources="1" stamp="1732621606241" updateReferences="true"/>&#x0A;<refactoring comment="Rename resource &apos;blink/spiffs/measurments.bin&apos; to &apos;measurements.bin&apos;" description="Rename resource &apos;measurments.bin&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="spiffs/measurments.bin" name="measurements.bin" stamp="1732627714874" updateReferences="true"/>
+</session>

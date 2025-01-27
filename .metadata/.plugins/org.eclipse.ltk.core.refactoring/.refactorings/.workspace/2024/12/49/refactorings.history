@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;blink/managed_components&apos;" deleteContents="false" description="Delete resource &apos;blink/managed_components&apos;" element1="/blink/managed_components" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1733234399106"/>&#x0A;<refactoring comment="Delete resource &apos;blink/partitions.csv&apos;" deleteContents="false" description="Delete resource &apos;blink/partitions.csv&apos;" element1="/blink/partitions.csv" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1733234407133"/>
+</session>

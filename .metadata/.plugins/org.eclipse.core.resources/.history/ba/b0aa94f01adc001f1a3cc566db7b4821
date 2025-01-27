@@ -1,0 +1,243 @@
+// alarms.c
+
+#include "alarms.h"
+#include "mqtt.h"
+#include "hx711.h"
+#include "motor.h"
+#include "led.h"
+#include "driver/rtc_io.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "esp_log.h"
+#include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
+static const char *TAG = "ALARMS";
+
+static Alarm_t alarms_list[MAX_ALARMS];
+static int alarms_count = 0;
+static SemaphoreHandle_t alarms_mutex = NULL;
+
+// Forward declaration
+extern void fill_water_to(int32_t target_weight);
+
+/**
+ * @brief Funkcja porównująca dwa czasy
+ *
+ * @param a Pierwszy czas
+ * @param b Drugi czas
+ * @return true jeśli są równe, false w przeciwnym razie
+ */
+static bool is_time_equal(const struct tm *a, const struct tm *b) {
+    return (a->tm_year == b->tm_year) &&
+           (a->tm_mon == b->tm_mon) &&
+           (a->tm_mday == b->tm_mday) &&
+           (a->tm_hour == b->tm_hour) &&
+           (a->tm_min == b->tm_min) &&
+           (a->tm_sec == b->tm_sec);
+}
+
+/**
+ * @brief Inicjalizacja modułu alarmów
+ */
+void alarms_init(void) {
+    // Create mutex
+    alarms_mutex = xSemaphoreCreateMutex();
+    if (alarms_mutex == NULL) {
+        ESP_LOGE(TAG, "Failed to create alarms_mutex");
+        return;
+    }
+
+    // Start alarms monitoring task
+    xTaskCreate(alarms_task, "alarms_task", 4096, NULL, 5, NULL);
+    ESP_LOGI(TAG, "Alarms module initialized.");
+}
+
+/**
+ * @brief Dodanie alarmu
+ *
+ * @param alarm Alarm do dodania
+ * @return true jeśli sukces, false jeśli bufor jest pełny lub błąd
+ */
+bool add_alarm(const Alarm_t *alarm) {
+    if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) == pdTRUE) {
+        if (alarms_count >= MAX_ALARMS) {
+            ESP_LOGE(TAG, "Alarms list full, cannot add alarm.");
+            xSemaphoreGive(alarms_mutex);
+            return false;
+        }
+
+        // Add alarm to the list
+        alarms_list[alarms_count] = *alarm;
+        alarms_count++;
+        ESP_LOGI(TAG, "Alarm added: %04d-%02d-%02dT%02d:%02d:%02d, target_weight=%ld",
+                 alarm->timestamp.tm_year + 1900,
+                 alarm->timestamp.tm_mon + 1,
+                 alarm->timestamp.tm_mday,
+                 alarm->timestamp.tm_hour,
+                 alarm->timestamp.tm_min,
+                 alarm->timestamp.tm_sec,
+                 alarm->target_weight);
+        xSemaphoreGive(alarms_mutex);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Usunięcie alarmu
+ *
+ * @param timestamp Czas alarmu do usunięcia
+ * @return true jeśli sukces, false jeśli nie znaleziono alarmu
+ */
+bool delete_alarm(const struct tm *timestamp) {
+    if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) == pdTRUE) {
+        for (int i = 0; i < alarms_count; i++) {
+            if (is_time_equal(&alarms_list[i].timestamp, timestamp)) {
+                // Remove alarm by shifting the rest
+                for (int j = i; j < alarms_count -1; j++) {
+                    alarms_list[j] = alarms_list[j+1];
+                }
+                alarms_count--;
+                ESP_LOGI(TAG, "Alarm deleted: %04d-%02d-%02dT%02d:%02d:%02d",
+                         timestamp->tm_year + 1900,
+                         timestamp->tm_mon + 1,
+                         timestamp->tm_mday,
+                         timestamp->tm_hour,
+                         timestamp->tm_min,
+                         timestamp->tm_sec);
+                xSemaphoreGive(alarms_mutex);
+                return true;
+            }
+        }
+        ESP_LOGE(TAG, "Alarm not found for deletion: %04d-%02d-%02dT%02d:%02d:%02d",
+                 timestamp->tm_year + 1900,
+                 timestamp->tm_mon + 1,
+                 timestamp->tm_mday,
+                 timestamp->tm_hour,
+                 timestamp->tm_min,
+                 timestamp->tm_sec);
+        xSemaphoreGive(alarms_mutex);
+        return false;
+    }
+    return false;
+}
+
+/**
+ * @brief Pobranie wszystkich alarmów i wysłanie ich przez MQTT
+ */
+void get_alarms(void) {
+    if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) != pdTRUE) {
+        ESP_LOGE(TAG, "Failed to take alarms_mutex");
+        return;
+    }
+
+    // Start building JSON payload
+    char json_payload[1024];
+    size_t offset = 0;
+    offset += snprintf(json_payload + offset, sizeof(json_payload) - offset, "{\"alarms\": [");
+
+    for (int i = 0; i < alarms_count; i++) {
+        const Alarm_t *alarm = &alarms_list[i];
+        offset += snprintf(json_payload + offset, sizeof(json_payload) - offset,
+                         "{\"timestamp\": \"%04d-%02d-%02dT%02d:%02d:%02d\", \"target_weight\": %ld}%s",
+                         alarm->timestamp.tm_year + 1900,
+                         alarm->timestamp.tm_mon + 1,
+                         alarm->timestamp.tm_mday,
+                         alarm->timestamp.tm_hour,
+                         alarm->timestamp.tm_min,
+                         alarm->timestamp.tm_sec,
+                         alarm->target_weight,
+                         (i < alarms_count -1) ? "," : "");
+        if (offset >= sizeof(json_payload)) {
+            ESP_LOGE(TAG, "JSON payload buffer overflow");
+            break;
+        }
+    }
+
+    offset += snprintf(json_payload + offset, sizeof(json_payload) - offset, "]}");
+
+    xSemaphoreGive(alarms_mutex);
+
+    // Publish to hydrapet0001/update/get/alarms
+    mqtt_publish("hydrapet0001/update/get/alarms", json_payload);
+    ESP_LOGI(TAG, "Published alarms: %s", json_payload);
+}
+
+/**
+ * @brief Zadanie monitorujące alarmy
+ *
+ * @param pvParameters Argument zadania
+ */
+void alarms_task(void *pvParameters) {
+    while (1) {
+        // Get current time
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+
+        // Check for due alarms
+        if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) == pdTRUE) {
+            for (int i = 0; i < alarms_count; i++) {
+                Alarm_t *alarm = &alarms_list[i];
+                // Convert alarm time to time_t
+                time_t alarm_time = mktime(&alarm->timestamp);
+                if (alarm_time <= now) {
+                    // Alarm is due, trigger it
+                    ESP_LOGI(TAG, "Triggering alarm: %04d-%02d-%02dT%02d:%02d:%02d, target_weight=%ld",
+                             alarm->timestamp.tm_year + 1900,
+                             alarm->timestamp.tm_mon + 1,
+                             alarm->timestamp.tm_mday,
+                             alarm->timestamp.tm_hour,
+                             alarm->timestamp.tm_min,
+                             alarm->timestamp.tm_sec,
+                             alarm->target_weight);
+
+                    // Copy alarm data
+                    Alarm_t triggered_alarm = *alarm;
+
+                    // Remove the alarm from the list by shifting
+                    for (int j = i; j < alarms_count -1; j++) {
+                        alarms_list[j] = alarms_list[j+1];
+                    }
+                    alarms_count--;
+                    i--; // Adjust index after shifting
+
+                    xSemaphoreGive(alarms_mutex);
+
+					int32_t last_weight = get_water_weight();
+                    
+
+                    // Trigger water filling
+                    fill_water_to(triggered_alarm.target_weight);
+
+                    // Wait 3 seconds to check if water was added
+                    vTaskDelay(pdMS_TO_TICKS(3000));
+                    
+                    // Get current weight
+                    int32_t current_weight = get_water_weight();
+
+                    // Compare with target_weight
+                    if (current_weight < last_weight + 10) {
+                        // Water addition failed, send "empty" message
+                        ESP_LOGE(TAG, "Water addition failed, sending 'empty' message.");
+                        mqtt_publish("hydrapet0001/hydrapetinfo/watertank", "empty");
+                        ESP_LOGI(TAG, "Published 'empty' to hydrapet0001/hydrapetinfo/watertank");
+                    }
+                    else{
+						int32_t last_weight = current_weight;
+					}
+
+                    // Continue with the next alarm
+                }
+            }
+            xSemaphoreGive(alarms_mutex);
+        }
+
+        // Sleep for 1 second before next check
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}

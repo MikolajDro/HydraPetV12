@@ -1,0 +1,77 @@
+[1/5] cmd.exe /C "cd /D C:\Users\mikol\OneDrive\Pulpit\Esp\hydrapetv12\build\esp-idf\esptool_py && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.1/components/partition_table/check_sizes.py --offset 0x8000 partition --type app C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build/partition_table/partition-table.bin C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build/hydrapetv12.bin"
+hydrapetv12.bin binary size 0xf68d0 bytes. Smallest app partition is 0x100000 bytes. 0x9730 bytes (4%) free.
+Warning: The smallest app partition is nearly full (4% free space left)!
+[2/5] Performing build step for 'bootloader'
+[1/1] cmd.exe /C "cd /D C:\Users\mikol\OneDrive\Pulpit\Esp\hydrapetv12\build\bootloader\esp-idf\esptool_py && C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.1/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x0 C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build/bootloader/bootloader.bin"
+Bootloader binary size 0x54e0 bytes. 0x2b20 bytes (34%) free.
+[2/3] cmd.exe /C "cd /D C:\Espressif\frameworks\esp-idf-v5.3.1\components\esptool_py && C:\Espressif\tools\cmake\3.24.0\bin\cmake.exe -D IDF_PATH=C:/Espressif/frameworks/esp-idf-v5.3.1 -D SERIAL_TOOL=C:/Espressif/python_env/idf5.3_py3.11_env/Scripts/python.exe;;C:/Espressif/frameworks/esp-idf-v5.3.1/components/esptool_py/esptool/esptool.py;--chip;esp32c6 -D SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_argsesptool.py --chip esp32c6 -p COM6 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 80m --flash_size 8MB 0x0 bootloader/bootloader.bin 0x10000 hydrapetv12.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.8.1
+Serial port COM6
+Connecting...
+Chip is ESP32-C6 (QFN40) (revision v0.0)
+Features: WiFi 6, BT 5, IEEE802.15.4
+Crystal is 40MHz
+MAC: 40:4c:ca:ff:fe:44:c8:84
+BASE MAC: 40:4c:ca:44:c8:84
+MAC_EXT: ff:fe
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00000000 to 0x00005fff...
+Flash will be erased from 0x00010000 to 0x00106fff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 21728 bytes to 13103...
+Writing at 0x00000000... (100 %)
+Wrote 21728 bytes (13103 compressed) at 0x00000000 in 0.3 seconds (effective 502.6 kbit/s)...
+Hash of data verified.
+Compressed 1009872 bytes to 586003...
+Writing at 0x00010000... (2 %)
+Writing at 0x0001de4a... (5 %)
+Writing at 0x000288a3... (8 %)
+Writing at 0x0002d32e... (11 %)
+Writing at 0x00034236... (13 %)
+Writing at 0x0003cfb2... (16 %)
+Writing at 0x000438c0... (19 %)
+Writing at 0x0004b5b3... (22 %)
+Writing at 0x00053275... (25 %)
+Writing at 0x0005a6ae... (27 %)
+Writing at 0x00061421... (30 %)
+Writing at 0x00067ed1... (33 %)
+Writing at 0x0006e664... (36 %)
+Writing at 0x00075520... (38 %)
+Writing at 0x0007b48a... (41 %)
+Writing at 0x00081e94... (44 %)
+Writing at 0x00088495... (47 %)
+Writing at 0x0008e38e... (50 %)
+Writing at 0x000940e2... (52 %)
+Writing at 0x0009a225... (55 %)
+Writing at 0x000a02e3... (58 %)
+Writing at 0x000a6604... (61 %)
+Writing at 0x000ac792... (63 %)
+Writing at 0x000b24d3... (66 %)
+Writing at 0x000b8a66... (69 %)
+Writing at 0x000bf693... (72 %)
+Writing at 0x000c678d... (75 %)
+Writing at 0x000cd615... (77 %)
+Writing at 0x000d466d... (80 %)
+Writing at 0x000da848... (83 %)
+Writing at 0x000e0b35... (86 %)
+Writing at 0x000e70ea... (88 %)
+Writing at 0x000ecee7... (91 %)
+Writing at 0x000f3d75... (94 %)
+Writing at 0x000fa248... (97 %)
+Writing at 0x000ffe8a... (100 %)
+Wrote 1009872 bytes (586003 compressed) at 0x00010000 in 5.0 seconds (effective 1622.9 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.1 seconds (effective 343.9 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...
+ -D WORKING_DIRECTORY=C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build -P C:/Espressif/frameworks/esp-idf-v5.3.1/components/esptool_py/run_serial_tool.cmake"

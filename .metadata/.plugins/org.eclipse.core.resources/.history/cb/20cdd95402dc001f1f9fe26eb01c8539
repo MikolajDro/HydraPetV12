@@ -1,0 +1,24 @@
+/*
+ * motor.h
+ *
+ *  Created on: 26 sty 2025
+ *      Author: mikol
+ */
+
+#ifndef MAIN_MOTOR_H_
+#define MAIN_MOTOR_H_
+
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+#include "main.h"
+#include "hx711.h"        // Odczyt wagi
+#include "driver/gpio.h"
+
+
+
+
+
+#endif /* MAIN_MOTOR_H_ */

@@ -1,0 +1,251 @@
+// mqtt.c
+
+#include "mqtt.h"
+#include "mqtt_client.h"
+#include "esp_log.h"
+#include <string.h>
+#include <stdlib.h>
+#include "hx711.h"
+#include "motor.h"
+#include "led.h"
+#include "button.h"
+
+static const char *TAG = "MQTT";
+
+static esp_mqtt_client_handle_t mqtt_client = NULL;
+
+// Callback globalny do obsługi wiadomości
+static mqtt_callback_t global_mqtt_callback = NULL;
+
+/**
+ * @brief Handler eventów MQTT
+ *
+ * @param handler_args Argument handlera
+ * @param base Podstawa eventu
+ * @param event_id ID eventu
+ * @param event_data Dane eventu
+ */
+static void mqtt_event_handler_cb(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
+{
+    esp_mqtt_event_handle_t event = event_data;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            // Subskrybujemy tematy po połączeniu
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/set/time", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/time", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/set/water", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/water", 0);
+            esp_mqtt_client_subscribe(mqtt_client, "hydrapet0001/update/get/status", 0);
+            ESP_LOGI(TAG, "Subskrybowanie tematów MQTT zakończone");
+            break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_DATA:
+            // Obsługa odebranych danych
+            if (global_mqtt_callback != NULL) {
+                // Kopiowanie tematu i wiadomości do bufora
+                char topic[128];
+                char message[256];
+                memset(topic, 0, sizeof(topic));
+                memset(message, 0, sizeof(message));
+
+                // Kopiujemy temat
+                strncpy(topic, event->topic, event->topic_len);
+                topic[event->topic_len] = '\0';
+
+                // Kopiujemy wiadomość
+                strncpy(message, event->data, event->data_len);
+                message[event->data_len] = '\0';
+
+                // Wywołujemy callbacka
+                global_mqtt_callback(topic, message);
+            }
+            break;
+        // Obsługa innych eventów w razie potrzeby
+        default:
+            break;
+    }
+}
+
+void mqtt_init(void)
+{
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker = {
+            .address = {
+                .uri = "mqtt://test.mosquitto.org:1883", // Zmień na własny broker
+            },
+        },
+    };
+
+    mqtt_client = esp_mqtt_client_init(&mqtt_cfg);
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "Failed to initialize MQTT client");
+        return;
+    }
+
+    esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler_cb, NULL);
+    esp_mqtt_client_start(mqtt_client);
+    ESP_LOGI(TAG, "MQTT initialized.");
+}
+
+void mqtt_publish_all(int32_t weight, struct tm timestamp, bool button_state, bool led_state, bool pin15_state)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[300]; // Zwiększamy rozmiar, aby pomieścić wszystkie dane
+
+    // Topic: hydrapet/get/all
+    snprintf(topic, sizeof(topic), "hydrapet/get/all");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload),
+             "{\"weight\": %ld, \"timestamp\": \"%04d-%02d-%02dT%02d:%02d:%02d\", \"button_state\": \"%s\", \"led_state\": \"%s\", \"pin15_state\": \"%s\"}",
+             weight,
+             timestamp.tm_year + 1900, timestamp.tm_mon + 1, timestamp.tm_mday,
+             timestamp.tm_hour, timestamp.tm_min, timestamp.tm_sec,
+             button_state ? "PRESSED" : "RELEASED",
+             led_state ? "ON" : "OFF",
+             pin15_state ? "HIGH" : "LOW");
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_publish_water_state(int water_state)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[50];
+
+    // Topic: hydrapet0001/hydrapetinfo/water
+    snprintf(topic, sizeof(topic), "hydrapet0001/hydrapetinfo/water");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload), "{\"water_state\": %d}", water_state);
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_publish_current_time(struct tm timestamp)
+{
+    if (mqtt_client == NULL) {
+        ESP_LOGE(TAG, "MQTT client not initialized");
+        return;
+    }
+
+    char topic[50];
+    char payload[100];
+
+    // Topic: hydrapet0001/hydrapetinfo/time
+    snprintf(topic, sizeof(topic), "hydrapet0001/hydrapetinfo/time");
+
+    // Tworzymy payload z danymi w formacie JSON
+    snprintf(payload, sizeof(payload), "{\"current_time\": \"%04d-%02d-%02dT%02d:%02d:%02d\"}",
+             timestamp.tm_year + 1900, timestamp.tm_mon + 1, timestamp.tm_mday,
+             timestamp.tm_hour, timestamp.tm_min, timestamp.tm_sec);
+
+    esp_mqtt_client_publish(mqtt_client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "MQTT publish: %s -> %s", topic, payload);
+}
+
+void mqtt_set_message_callback(void (*callback)(const char *, const char *))
+{
+    global_mqtt_callback = callback;
+    ESP_LOGI(TAG, "MQTT message callback set.");
+}
+
+
+bool get_pin15_state(void) {
+    // Używamy funkcji z motor.h
+    return get_motor_state();
+}
+
+
+
+/**
+ * @brief Callback do obsługi odebranych wiadomości MQTT
+ *
+ * @param topic Otrzymany temat
+ * @param message Otrzymana wiadomość
+ */
+void mqtt_message_handler(const char *topic, const char *message)
+{
+    ESP_LOGI(TAG, "Odebrano wiadomość na temat: %s -> %s", topic, message);
+
+    // Obsługa różnych tematów
+    if (strcmp(topic, "hydrapet0001/update/set/time") == 0) {
+        // Przykład: ustawianie czasu
+        ESP_LOGI(TAG, "Ustawianie czasu na podstawie wiadomości: %s", message);
+        // Implementacja ustawiania czasu wymaga synchronizacji czasu, np. przez SNTP
+        // Poniżej przykładowa implementacja ustawiania czasu lokalnego
+        struct tm new_time;
+        memset(&new_time, 0, sizeof(new_time));
+        // Zakładamy, że wiadomość ma format "YYYY-MM-DDTHH:MM:SS"
+        sscanf(message, "%d-%d-%dT%d:%d:%d",
+               &new_time.tm_year, &new_time.tm_mon, &new_time.tm_mday,
+               &new_time.tm_hour, &new_time.tm_min, &new_time.tm_sec);
+        new_time.tm_year -= 1900; // tm_year: years since 1900
+        new_time.tm_mon -= 1;     // tm_mon: months since January [0-11]
+        // Ustawienie czasu systemowego (wymaga konfiguracji czasu przez SNTP lub inne źródła)
+        // Możesz użyć funkcji time() i settimeofday() jeśli masz odpowiednie uprawnienia
+        // Poniżej przykład z użyciem SNTP do synchronizacji czasu
+        // Implementacja zależy od Twoich potrzeb
+    }
+    else if (strcmp(topic, "hydrapet0001/update/get/time") == 0) {
+        // Przykład: wysyłanie aktualnego czasu
+        ESP_LOGI(TAG, "Wysyłanie aktualnego czasu na żądanie");
+        // Pobierz aktualny czas i wyślij go
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        mqtt_publish_current_time(timeinfo);
+    }
+    else if (strcmp(topic, "hydrapet0001/update/set/water") == 0) {
+        // Przykład: ustawianie stanu wody
+        ESP_LOGI(TAG, "Ustawianie stanu wody na podstawie wiadomości: %s", message);
+        // Możesz tutaj zaktualizować stan wody, np. poprzez sterowanie zaworem
+        // Konwersja wiadomości na int
+        int target_weight = (int )atoi(message);
+        
+		if (target_weight > 0) {
+            fill_water_to(target_weight);
+        } else {
+            ESP_LOGE(TAG, "Nieprawidłowa wartość docelowej wagi: %s", message);
+        }
+    }
+    else if (strcmp(topic, "hydrapet0001/update/get/water") == 0) {
+        // Przykład: wysyłanie aktualnego stanu wody
+        ESP_LOGI(TAG, "Wysyłanie aktualnego stanu wody na żądanie");
+        // Pobierz aktualny stan wody i wyślij
+        // Zakładam, że stan wody to waga, ale możesz to dostosować
+        int water_state = get_water_weight(); // Dostosuj do rzeczywistej funkcji
+        mqtt_publish_water_state(water_state);
+    }
+    else if (strcmp(topic, "hydrapet0001/update/get/status") == 0) {
+        // Przykład: wysyłanie statusu urządzenia
+        ESP_LOGI(TAG, "Wysyłanie statusu urządzenia na żądanie");
+        // Zbierz wszystkie informacje o stanie urządzenia i wyślij
+        int32_t weight = get_water_weight();
+        time_t now;
+        struct tm current_time;
+        time(&now);
+        localtime_r(&now, &current_time);
+        bool button_state = pair_button_state();
+        bool led_state = led_state; // Zakładam LED na GPIO 2
+        bool pin15_state = led_state;
+
+        mqtt_publish_all(weight, current_time, button_state, led_state, pin15_state);
+    }
+}
