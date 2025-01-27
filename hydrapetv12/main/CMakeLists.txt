@@ -7,6 +7,7 @@ idf_component_register(
          "wifi.c"
          "motor.c"
          "alarms.c"
+         "water_level_sensor.c"
     INCLUDE_DIRS "."
     PRIV_REQUIRES esp_event nvs_flash driver freertos esp_wifi mqtt
 )

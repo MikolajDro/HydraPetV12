@@ -6,8 +6,13 @@
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
-		<item key="selection" value="handle_incoming_message"/>
+		<item key="selection" value="TANK_LEVEL_SENSOR_PIN"/>
 		<list key="findhistory">
+			<item value="TANK_LEVEL_SENSOR_PIN"/>
+			<item value="USER_BUTTON_PIN"/>
+			<item value="wifi_connected"/>
+			<item value="mqtt_button_state"/>
+			<item value="led_state"/>
 			<item value="handle_incoming_message"/>
 			<item value="settimeofday"/>
 			<item value="mqtt_event_handler"/>
@@ -18,10 +23,6 @@
 			<item value="for"/>
 			<item value="formating"/>
 			<item value="failed to open"/>
-			<item value="MEASUREMENT_BUFFER_SIZE"/>
-			<item value="BLINK_GPIO"/>
-			<item value="s_led_state"/>
-			<item value="esp_mqtt_client_config_t"/>
 		</list>
 		<list key="replacehistory">
 		</list>

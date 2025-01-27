@@ -18,6 +18,7 @@ void buttons_task(void *arg);
 /**
  * @brief Pobranie stanu przycisku pair
  */
-bool pair_button_state(void);
+bool user_button_state(void);
+
 
 #endif // BUTTONS_H

@@ -19,6 +19,23 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
+
+
+// Zmienna do śledzenia stanu połączenia z Wi-Fi
+static bool wifi_connected = false;
+
+// Funkcja do sprawdzenia czy jesteśmy połączeni z Wi-Fi
+bool is_wifi_connected(void)
+{
+    return wifi_connected;
+}
+
+void set_is_wifi_connected(bool is_conn)
+{
+	wifi_connected = is_conn;
+}
+
+
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data)
 {

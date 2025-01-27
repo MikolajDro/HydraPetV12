@@ -6450,8 +6450,8 @@
                 "children": [],
                 "depends_on": null,
                 "help": "GPIO number (IOxx) do przycisku MQTT.",
-                "id": "BUTTON_MQTT_PIN",
-                "name": "BUTTON_MQTT_PIN",
+                "id": "USER_BUTTON_PIN",
+                "name": "USER_BUTTON_PIN",
                 "range": [
                     0,
                     39

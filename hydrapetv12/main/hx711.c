@@ -75,7 +75,6 @@ void hx711_init(void)
         }
     }
 
-    // Opcjonalnie, wykonaj tare podczas inicjalizacji
     tare();
 }
 
@@ -148,7 +147,15 @@ static int32_t read_raw(void)
 int32_t get_water_weight(void)
 {
     int32_t raw_value = read_raw();
+    
+    float tmp=0;
+    
     int32_t weight = raw_value - tare_offset;
+    
+    tmp = (float )weight / 1000;
+    
+    weight = (uint32_t) tmp;
+    
 
     // Dodaj pomiar do bufora kołowego
     add_measurement(weight);

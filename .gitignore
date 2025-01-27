@@ -1,3 +1,6 @@
+# My gitignore
+*.zip
+
 # Prerequisites
 *.d
 

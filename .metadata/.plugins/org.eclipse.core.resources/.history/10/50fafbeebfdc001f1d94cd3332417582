@@ -1,0 +1,22 @@
+/*
+ * water_level_sensor.h
+ *
+ *  Created on: 27 sty 2025
+ *      Author: mikol
+ */
+
+#ifndef MAIN_WATER_LEVEL_SENSOR_H_
+#define MAIN_WATER_LEVEL_SENSOR_H_
+
+#include <stdbool.h>
+
+bool water_level_sensor_state(void);
+
+
+void water_level_sensor_init(void);
+
+void publish_water_tank_level(void);
+
+void water_level_sensor_task(void *pvParameters);
+
+#endif /* MAIN_WATER_LEVEL_SENSOR_H_ */

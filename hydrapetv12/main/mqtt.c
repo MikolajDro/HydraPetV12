@@ -121,7 +121,7 @@ void mqtt_publish_all(int32_t weight, struct tm timestamp, bool button_state, bo
     char payload[300]; // Zwiększamy rozmiar, aby pomieścić wszystkie dane
 
     // Topic: hydrapet/get/all
-    snprintf(topic, sizeof(topic), "hydrapet/get/all");
+    snprintf(topic, sizeof(topic), "hydrapet0001/hydrapetinfo/all");
 
     // Tworzymy payload z danymi w formacie JSON
     snprintf(payload, sizeof(payload),
@@ -362,7 +362,7 @@ void mqtt_message_handler(const char *topic, const char *message)
         struct tm current_time;
         time(&now);
         localtime_r(&now, &current_time);
-        bool button_state = pair_button_state();
+        bool button_state = user_button_state();
         bool led_state = led_state; // Zakładam LED na GPIO 2
         bool pin15_state = led_state;
 

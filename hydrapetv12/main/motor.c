@@ -8,11 +8,11 @@
 #include "motor.h"
 
 
-#define MOTOR_PIN        GPIO_NUM_15 // Pin 15 – silnik
+#define MOTOR_PIN       GPIO_NUM_15 // Pin 15 – silnik
 #define ON				1
 #define OFF				!ON
 
-static const char *TAG = "LED";
+static const char *TAG = "MOTOR";
 
 static bool motor_state = OFF;
 

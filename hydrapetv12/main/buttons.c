@@ -10,56 +10,55 @@
 static const char *TAG = "BUTTONS";
 
 
-#define BUTTON_PAIR_PIN 10
+#define USER_BUTTON_PIN  GPIO_NUM_4  // User button
 
-static bool s_pair_state = false;  // false - released, true - pressed
+static bool s_user_button_state = false;  // false - released, true - pressed
 
-bool pair_button_state(void)
+bool user_button_state(void)
 {
-    return s_pair_state;
+    return !gpio_get_level(USER_BUTTON_PIN);
 }
 
 void buttons_init(void)
-{
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << BUTTON_PAIR_PIN),
+{    
+    gpio_config_t io_conf_user_button = {
+        .pin_bit_mask = (1ULL << USER_BUTTON_PIN),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = true,
         .pull_down_en = false,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&io_conf);
-    ESP_LOGI(TAG, "Buttons initialized.");
+    gpio_config(&io_conf_user_button);
+    ESP_LOGI(TAG, "Button initialized.");
 }
 
 void buttons_task(void *arg)
 {
-    bool last_state = true; // assume pulled-up
+    bool last_state = true;
 
     while (1) {
-        bool current_state = (gpio_get_level(BUTTON_PAIR_PIN) == 0) ? true : false;
+        bool current_state = user_button_state();
         if (current_state != last_state) {
-            // Detekcja zmiany stanu
             if (current_state == true) {
-                ESP_LOGI(TAG, "Pair Button PRESSED!");
+                ESP_LOGI(TAG, "User Button PRESSED!");
 
 				led_blink_pair();
 
-				if(!is_wifi_connected()){
+				while(!is_wifi_connected()){
 	                // Ponowna próba połączenia z internetem
-	                bool connected = wifi_reconnect();
-	                if (connected) {
-	                    ESP_LOGI(TAG, "Udało się połączyć ponownie z Wi-Fi");
+	                if (wifi_reconnect()) {
+	                    ESP_LOGI(TAG, "Successfully connected to Wi-Fi");
 	                } else {
-	                    ESP_LOGI(TAG, "Nie udało się połączyć z Wi-Fi (ponowna próba)");
+	                    ESP_LOGI(TAG, "Connection not established, trying connect again");
 	                }
+	                vTaskDelay(pdMS_TO_TICKS(200));
 	            }
 
             } else {
                 ESP_LOGI(TAG, "Pair Button RELEASED!");
             }
             last_state = current_state;
-            s_pair_state = current_state;
+            s_user_button_state = current_state;
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

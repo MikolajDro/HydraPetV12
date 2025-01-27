@@ -23,42 +23,23 @@
 #include "wifi.h"
 #include "motor.h"
 #include "alarms.h"
+#include "water_level_sensor.h"
 
 static const char *TAG = "MAIN";
 
 // Definicje pinów (jeśli nie masz w sdkconfig)
-#define BUTTON_MQTT_PIN  GPIO_NUM_4  // Przycisk do MQTT (lub inny)
-#define BUTTON_PAIR_PIN  GPIO_NUM_10  // Przycisk pair (zamiast LED)
 #define PUBLISH_ALL_DURATION_TIME	60 * 1000 // 1 minute between refresh
 
-// Zmienna globalna do śledzenia stanu diody (ON/OFF)
-static bool led_state = false;
 
-// Zmienna do śledzenia stanu połączenia z Wi-Fi
-static bool wifi_connected = false;
-
-// Funkcja do sprawdzenia czy jesteśmy połączeni z Wi-Fi
-bool is_wifi_connected(void)
-{
-    // Tu wstaw logikę sprawdzania statusu Wi-Fi (np. eventy, flaga)
-    // Załóżmy, że mamy zmienną globalną wifi_connected
-    return wifi_connected;
-}
-
-
-
-// Zadanie do publikowania danych co 10 sekund
 static void publish_task(void *pvParameters)
 {
     while (true)
     {
         // Sprawdź, czy jesteśmy połączeni do Wi-Fi
-        if (!is_wifi_connected())
+        while (!is_wifi_connected())
         {
-            // Jeśli nie ma połączenia – nie rób nic, ewentualnie:
-            ESP_LOGW(TAG, "Brak połączenia z Wi-Fi, czekam...");
-            vTaskDelay(pdMS_TO_TICKS(2000)); // czekaj 2s i sprawdź znowu
-            continue;
+            ESP_LOGW(TAG, "Wi-Fi connection not established yet");
+            vTaskDelay(pdMS_TO_TICKS(2000)); 
         }
 
         // Jesteśmy połączeni, odczytujemy dane
@@ -68,21 +49,13 @@ static void publish_task(void *pvParameters)
         struct tm timeinfo = {0};
         localtime_r(&now, &timeinfo);
 
-        // Stan przycisków
-        bool mqtt_button_state = (gpio_get_level(BUTTON_MQTT_PIN) == 0); // załóżmy że 0 = wciśnięty
-
-        // Stan diody
-        bool current_led_state = led_state;  // Jeśli przechowujesz w globalnej
-
-        // Stan pinu 15 (motor)
-        bool motor_state = get_motor_state();
 
         // Wysyłamy na topic "hydrapet/get/all"
         mqtt_publish_all(weight, 
         				timeinfo, 
-        				mqtt_button_state ? 1 : 0, 
-        				current_led_state ? 1 : 0, 
-        				motor_state ? 1 : 0);
+        				user_button_state(), 
+        				led_get_state(), 
+        				get_motor_state());
 
 
         // Publikujemy stan wody na temat hydrapet0001/hydrapetinfo/water
@@ -90,6 +63,9 @@ static void publish_task(void *pvParameters)
 
         // Publikujemy aktualny czas na temat hydrapet0001/hydrapetinfo/time
         mqtt_publish_current_time(timeinfo);
+        
+        
+        mqtt_publish_water_tank_level();
 
         // Po publikacji mignij diodą
         led_blink_once();
@@ -99,32 +75,10 @@ static void publish_task(void *pvParameters)
     }
 }
 
-// Obsługa przycisku pair – po wciśnięciu miga diodą co 500 ms i próbuje ponownie Wi-Fi
-static void pair_button_task(void *pvParameters)
-{
-    bool prev_state = true; // Załóżmy pull-up = 1 (niewciśnięty)
-    while (true)
-    {
-        bool current_state = (gpio_get_level(BUTTON_PAIR_PIN) == 0);
-        if (current_state && !prev_state)
-        {
-            // Wciśnięto przycisk (zbocze opadające)
-            ESP_LOGI(TAG, "Pair button pressed – miganie i ponowna próba Wi-Fi");
-            // Miga diodą co 500 ms
-            led_blink_pair();
-            // Próba ponownego połączenia z Wi-Fi
-            // np.:
-            wifi_connected = wifi_init_sta(); // lub inna funkcja do ponownego łączenia
-        }
-        prev_state = current_state;
-
-        vTaskDelay(pdMS_TO_TICKS(50)); // proste odpytywanie co 50ms
-    }
-}
 
 void app_main(void)
 {
-    // Inicjalizacja NVS (potrzebne do Wi-Fi)
+    // Inicjalizacja NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
         ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -134,26 +88,35 @@ void app_main(void)
     ESP_ERROR_CHECK(ret);
 
     // Inicjalizacja Wi-Fi
-    // Załóżmy, że wifi_init() ustawia zmienną globalną wifi_connected = true, gdy się powiedzie
-    wifi_connected = wifi_init_sta();
+    set_is_wifi_connected( wifi_init_sta() );
 
+	esp_log_level_set("wifi", ESP_LOG_ERROR);
+
+
+    // Inicjalizacja diody
+    led_init();
+    
+    
+	int i=0;
     // Sprawdź, czy udało się połączyć z Wi-Fi
-    // Jeśli nie, pętla – nic nie rób
-    if (!is_wifi_connected())
+    while(!is_wifi_connected())
     {
-        ESP_LOGW(TAG, "Nie udało się połączyć z Wi-Fi – nic nie robię");
-        while (1)
+		
+        ESP_LOGW(TAG, "Connection not established, trying again...");
+        wifi_reconnect();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        led_blink_once();
+        if(i > 60)
         {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-        }
+			i++;
+			while(1){
+				;
+			}
+		}
     }
 
     // Inicjalizacja MQTT
     mqtt_init();
-
-    // Inicjalizacja diody
-    led_init();
-    led_set_state(false);
     
     motor_init();
     
@@ -161,11 +124,10 @@ void app_main(void)
     alarms_init();
 
     // Inicjalizacja przycisków
-    buttons_init(); // w buttons.c np. skonfiguruj piny BUTTON_MQTT_PIN i BUTTON_PAIR_PIN
+    buttons_init();
 
     // Inicjalizacja HX711
     hx711_init();
-    tare(); 
 
     // Utworzenie zadań
     // 1) Zadanie publikujące co 10 sekund
@@ -175,11 +137,13 @@ void app_main(void)
     mqtt_set_message_callback(mqtt_message_handler);
 
     // 2) Zadanie obsługujące przycisk pair
-    xTaskCreate(pair_button_task, "pair_button_task", 2048, NULL, 5, NULL);
+    xTaskCreate(water_level_sensor_task, "water_level_sensor_task", 2048, NULL, 5, NULL);
+    
+    xTaskCreate(buttons_task, "user_button_task", 2048, NULL, 5, NULL);
     
     // Główna pętla nie robi nic – wszystko jest w zadaniach
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10000000000));
     }
 }

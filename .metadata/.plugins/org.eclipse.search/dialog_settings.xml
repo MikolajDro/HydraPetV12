@@ -32,15 +32,15 @@
 	<section name="TextSearchPage">
 		<item key="CASE_SENSITIVE" value="false"/>
 		<item key="REG_EX_SEARCH" value="false"/>
-		<item key="WHOLE_WORD" value="false"/>
+		<item key="WHOLE_WORD" value="true"/>
 		<item key="SEARCH_DERIVED" value="false"/>
 		<item key="SEARCH_IN_BINARIES" value="false"/>
 		<item key="HISTORY_SIZE" value="12"/>
 		<section name="HISTORY0">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="led_blink_task"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="publish_water_tank_level"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -55,8 +55,8 @@
 		<section name="HISTORY1">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="aktualnego stanu"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="mqtt_publish"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -67,8 +67,8 @@
 		<section name="HISTORY2">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="fill_water_to"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="pair_button_task"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -79,8 +79,8 @@
 		<section name="HISTORY3">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="led_blink_pair"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="s_pair_state"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -91,8 +91,8 @@
 		<section name="HISTORY4">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="led_blink_once"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="buttons_task"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -103,7 +103,7 @@
 		<section name="HISTORY5">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
+			<item key="isWholeWord" value="true"/>
 			<item key="textPattern" value="pair_button_state"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
@@ -115,8 +115,8 @@
 		<section name="HISTORY6">
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
-			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="ScheduledEvent"/>
+			<item key="isWholeWord" value="true"/>
+			<item key="textPattern" value="wifi_connected"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -128,7 +128,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="get_mqtt_client_handle_cb"/>
+			<item key="textPattern" value="BUTTON_PAIR_PIN"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -140,7 +140,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="get_mqtt_client_handle"/>
+			<item key="textPattern" value="BUTTON_MQTT_PIN"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -152,7 +152,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="esp_mqtt_client_publish"/>
+			<item key="textPattern" value="led_blink_task"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -164,7 +164,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="esp_log.h"/>
+			<item key="textPattern" value="aktualnego stanu"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -176,7 +176,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="esp_err_t"/>
+			<item key="textPattern" value="fill_water_to"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*"/>
@@ -193,5 +193,15 @@
 	</section>
 	<section name="">
 		<item key="org.eclipse.search.resultpage.limit" value="1000"/>
+	</section>
+	<section name="ReplaceDialog2">
+		<list key="replace_with">
+			<item value="mqtt_publish_water_tank_level"/>
+			<item value="water_level_sensor_task"/>
+			<item value="s_user_button_state"/>
+			<item value="user_button_state"/>
+			<item value="TANK_LEVEL_SENSOR_PIN"/>
+			<item value="USER_BUTTON_PIN"/>
+		</list>
 	</section>
 </section>

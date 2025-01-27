@@ -9,7 +9,4 @@
 #define MAIN_MAIN_H_
 
 
-bool is_wifi_connected(void);
-
-
 #endif /* MAIN_MAIN_H_ */

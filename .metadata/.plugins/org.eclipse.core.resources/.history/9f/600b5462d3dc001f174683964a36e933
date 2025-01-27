@@ -1,0 +1,74 @@
+#include "water_level_sensor.h"
+#include "led.h"
+#include "wifi.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "main.h"
+#include "hx711.h"
+#include "mqtt.h"
+#include "esp_log.h"
+#include <errno.h>
+
+static const char *TAG = "WATER LVL SENSOR";
+
+#define TANK_LEVEL_SENSOR_PIN GPIO_NUM_10  // Tank level 
+
+bool water_level_sensor_state(void)
+{
+    return gpio_get_level(TANK_LEVEL_SENSOR_PIN);
+}
+
+void water_level_sensor_init(void)
+{
+    gpio_config_t io_conf_tank_sensor = {
+        .pin_bit_mask = (1ULL << TANK_LEVEL_SENSOR_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = true,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf_tank_sensor);
+    ESP_LOGI(TAG, "Water level sensor initialized.");
+}
+
+void mqtt_publish_water_tank_level(void) {
+    if (water_level_sensor_state() == 0) {
+        ESP_LOGI(TAG, "Water level is below 30");
+        mqtt_publish("hydrapet0001/hydrapetinfo/watertanklevel", "Below 30%");
+    }
+    else {
+        ESP_LOGI(TAG, "Water level is full");
+        mqtt_publish("hydrapet0001/hydrapetinfo/watertanklevel", "Water tank is full");
+    }
+}
+
+void water_level_sensor_task(void *pvParameters)
+{
+    bool prev_state = true; // Pull-up = 1
+    while (true)
+    {
+        bool current_state = water_level_sensor_state();
+        if (current_state && !prev_state)
+        {
+            // Wciśnięto przycisk (zbocze opadające)
+            ESP_LOGI(TAG, "Water level is below 30");
+            
+            if(!is_wifi_connected())
+            {
+            	ESP_LOGW(TAG, "Wi-Fi is not connected! (trying to connect again)");
+				while(!wifi_reconnect()){
+					 vTaskDelay(pdMS_TO_TICKS(200));
+				}
+			}
+            //TODO: wysłanie wiadomości
+            led_blink_once();
+
+        	mqtt_publish("hydrapet0001/hydrapetinfo/watertanklevel", "Below 30\%");
+        }
+        
+        prev_state = current_state;
+
+        vTaskDelay(pdMS_TO_TICKS(100)); 
+	}
+}

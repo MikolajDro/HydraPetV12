@@ -1,0 +1,25 @@
+#ifndef BUTTONS_H
+#define BUTTONS_H
+
+#include <stdbool.h>
+
+/**
+ * @brief Inicjalizacja przycisków
+ */
+void buttons_init(void);
+
+/**
+ * @brief Zadanie obsługujące przycisk pair
+ *
+ * @param arg argument
+ */
+void buttons_task(void *arg);
+
+/**
+ * @brief Pobranie stanu przycisku pair
+ */
+bool user_button_state(void);
+
+void pair_button_task(void *pvParameters);
+
+#endif // BUTTONS_H

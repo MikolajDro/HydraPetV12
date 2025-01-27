@@ -1,7 +1,7 @@
 {
     "version":            "1.1",
     "project_name":       "hydrapetv12",
-    "project_version":    "1",
+    "project_version":    "c0d6709-dirty",
     "project_path":       "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12",
     "idf_path":           "C:/Espressif/frameworks/esp-idf-v5.3.1",
     "build_dir":          "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build",
@@ -1195,7 +1195,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [ "espressif__led_strip" ],
             "file": "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/build/esp-idf/main/libmain.a",
-            "sources": [ "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/main.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/buttons.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/mqtt.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/led.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/hx711.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/wifi.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/motor.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/alarms.c" ],
+            "sources": [ "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/main.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/buttons.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/mqtt.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/led.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/hx711.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/wifi.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/motor.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/alarms.c", "C:/Users/mikol/OneDrive/Pulpit/Esp/hydrapetv12/main/water_level_sensor.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {

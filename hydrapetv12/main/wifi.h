@@ -17,4 +17,8 @@ bool wifi_init_sta(void);
  */
 bool wifi_reconnect(void);
 
+bool is_wifi_connected(void);
+
+void set_is_wifi_connected(bool is_conn);
+
 #endif // WIFI_H

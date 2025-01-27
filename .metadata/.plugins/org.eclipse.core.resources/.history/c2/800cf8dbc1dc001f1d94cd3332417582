@@ -1,0 +1,88 @@
+#include "buttons.h"
+#include "led.h"
+#include "wifi.h"
+#include "esp_log.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "main.h"
+
+static const char *TAG = "BUTTONS";
+
+
+#define TANK_LEVEL_SENSOR_PIN 10
+
+static bool s_pair_state = false;  // false - released, true - pressed
+
+bool user_button_state(void)
+{
+    return s_pair_state;
+}
+
+void buttons_init(void)
+{
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << TANK_LEVEL_SENSOR_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = true,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf);
+    ESP_LOGI(TAG, "Buttons initialized.");
+}
+
+void buttons_task(void *arg)
+{
+    bool last_state = true;
+
+    while (1) {
+        bool current_state = user_button_state();
+        if (current_state != last_state) {
+            if (current_state == true) {
+                ESP_LOGI(TAG, "User Button PRESSED!");
+
+				led_blink_pair();
+
+				if(!is_wifi_connected()){
+	                // Ponowna próba połączenia z internetem
+	                if (wifi_reconnect()) {
+	                    ESP_LOGI(TAG, "Successfully connected to Wi-Fi");
+	                } else {
+	                    ESP_LOGI(TAG, "Connection not established, trying connect again");
+	                }
+	                vTaskDelay(pdMS_TO_TICKS(200));
+	            }
+
+            } else {
+                ESP_LOGI(TAG, "Pair Button RELEASED!");
+            }
+            last_state = current_state;
+            s_pair_state = current_state;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+void pair_button_task(void *pvParameters)
+{
+    bool prev_state = true; // Załóżmy pull-up = 1 (niewciśnięty)
+    while (true)
+    {
+        bool current_state = (gpio_get_level(TANK_LEVEL_SENSOR_PIN) == 0);
+        if (current_state && !prev_state)
+        {
+            // Wciśnięto przycisk (zbocze opadające)
+            ESP_LOGI(TAG, "Pair button pressed – miganie i ponowna próba Wi-Fi");
+            // Miga diodą co 500 ms
+            led_blink_pair();
+            // Próba ponownego połączenia z Wi-Fi
+            // np.:
+            set_is_wifi_connected( wifi_init_sta() ); // lub inna funkcja do ponownego łączenia
+        }
+        prev_state = current_state;
+
+        vTaskDelay(pdMS_TO_TICKS(50)); // proste odpytywanie co 50ms
+    }
+}

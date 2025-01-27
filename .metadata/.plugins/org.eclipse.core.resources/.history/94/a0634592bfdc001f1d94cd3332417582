@@ -1,0 +1,32 @@
+#include "water_level_sensor.h"
+#include "led.h"
+#include "wifi.h"
+#include "esp_log.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "main.h"
+
+static const char *TAG = "WATER LVL SENSOR";
+
+#define TANK_LEVEL_SENSOR_PIN GPIO_NUM_10  // Tank level 
+
+static bool s_water_level_sensor_state = false;  // false - released, true - pressed
+
+bool water_level_sensor_state(void)
+{
+    return gpio_get_level(TANK_LEVEL_SENSOR_PIN);
+}
+
+void water_level_sensor_init(void)
+{
+    gpio_config_t io_conf_tank_sensor = {
+        .pin_bit_mask = (1ULL << TANK_LEVEL_SENSOR_PIN),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = true,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&io_conf_tank_sensor);
+    ESP_LOGI(TAG, "Water level sensor initialized.");
+}
