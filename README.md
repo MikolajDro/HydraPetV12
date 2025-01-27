@@ -210,7 +210,6 @@ hydrapetv12/
 │   ├── buttons.c
 │   ├── buttons.h
 |   └──CMakeLists.txt
-Makefile
 README.md
 ```
 
