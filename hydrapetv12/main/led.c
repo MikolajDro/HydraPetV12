@@ -4,12 +4,22 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
+/** @brief Tag used for ESP logging */
 static const char *TAG = "LED";
+
+/** @brief GPIO number for the LED */
 #define LED_PIN 9 
 
+/** @brief Current state of the LED: false - OFF, true - ON */
 static bool s_led_state = false;
 
-// Zadanie migania diodą co 500 ms
+/**
+ * @brief Task to blink the LED every 500 milliseconds.
+ *
+ * This FreeRTOS task toggles the LED state every 500 ms, creating a blinking effect.
+ *
+ * @param pvParameters Parameter passed to the task (unused).
+ */
 void led_blink_task(void *pvParameters)
 {
     while (1) {
@@ -18,6 +28,11 @@ void led_blink_task(void *pvParameters)
     }
 }
 
+/**
+ * @brief Initializes the LED GPIO configuration.
+ *
+ * Configures the LED GPIO pin as an output and ensures it is turned off initially.
+ */
 void led_init(void)
 {
     gpio_config_t io_conf = {
@@ -32,18 +47,34 @@ void led_init(void)
     ESP_LOGI(TAG, "LED initialized.");
 }
 
+/**
+ * @brief Sets the state of the LED.
+ *
+ * Turns the LED on or off based on the provided parameter.
+ *
+ * @param on `true` to turn the LED on, `false` to turn it off.
+ */
 void led_set_state(bool on)
 {
     s_led_state = on;
     gpio_set_level(LED_PIN, on ? 1 : 0);
 }
 
+/**
+ * @brief Retrieves the current state of the LED.
+ *
+ * @return `true` if the LED is on, `false` otherwise.
+ */
 bool led_get_state(void)
 {
 	return s_led_state;
 }
 
-// Funkcja blink diodą (mignięcie raz)
+/**
+ * @brief Blinks the LED once.
+ *
+ * Turns the LED on for 200 ms and then turns it off for 200 ms to create a single blink.
+ */
 void led_blink_once(void)
 {
     // Włącz
@@ -54,10 +85,14 @@ void led_blink_once(void)
     vTaskDelay(pdMS_TO_TICKS(200));
 }
 
-// Funkcja migania diodą co 500 ms przez np. 5 sekund
+/**
+ * @brief Blinks the LED in pairs.
+ *
+ * Blinks the LED every 500 ms for approximately 5 seconds (10 cycles).
+ */
 void led_blink_pair(void)
 {
-    // Miga co 500 ms przez np. 5 sekund (10 cykli)
+    // LED toggles after 500 ms for 5 seconds (10 cycles)
     for (int i = 0; i < 10; i++)
     {
         led_set_state(true);
@@ -66,4 +101,3 @@ void led_blink_pair(void)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
-

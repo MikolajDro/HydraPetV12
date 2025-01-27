@@ -1,0 +1,70 @@
+// mqtt.h
+
+#ifndef MQTT_H
+#define MQTT_H
+
+#include <stdint.h>   // Dodane dla int32_t
+#include <time.h>     // Dodane dla struct tm
+#include <stdbool.h>  // Dodane dla bool
+
+/**
+ * @brief Inicjalizacja klienta MQTT
+ */
+void mqtt_init(void);
+
+
+void mqtt_publish(const char *topic, const char *payload);
+
+
+/**
+ * @brief Publikowanie pełnego zestawu danych co 10 sekund
+ *
+ * @param weight Waga zmierzona
+ * @param timestamp Znacznik czasu pomiaru
+ * @param button_state Stan przycisku pair
+ * @param led_state Stan diody LED
+ * @param pin15_state Stan pinu 15 (silnik)
+ */
+void mqtt_publish_all(int32_t weight, struct tm timestamp, bool button_state, bool led_state, bool pin15_state);
+
+/**
+ * @brief Publikowanie stanu wody
+ *
+ * @param water_state Stan wody jako liczba całkowita
+ */
+void mqtt_publish_water_state(int water_state);
+
+/**
+ * @brief Publikowanie aktualnego czasu
+ *
+ * @param timestamp Znacznik czasu
+ */
+void mqtt_publish_current_time(struct tm timestamp);
+
+/**
+ * @brief Ustawienie callbacka na odebrane wiadomości MQTT
+ *
+ * @param callback Funkcja callback przyjmująca temat i wiadomość
+ */
+void mqtt_set_message_callback(void (*callback)(const char *, const char *));
+
+/**
+ * @brief Typ funkcji callback do obsługi odebranych wiadomości MQTT
+ *
+ * @param topic Otrzymany temat
+ * @param message Otrzymana wiadomość
+ */
+typedef void (*mqtt_callback_t)(const char *topic, const char *message);
+
+
+/**
+ * @brief Callback do obsługi odebranych wiadomości MQTT
+ *
+ * @param topic Otrzymany temat
+ * @param message Otrzymana wiadomość
+ */
+void mqtt_message_handler(const char *topic, const char *message);
+
+void fill_water_to(int32_t target_weight);
+
+#endif // MQTT_H

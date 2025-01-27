@@ -16,19 +16,26 @@
 
 static const char *TAG = "ALARMS";
 
+/** @brief List of alarms */
 static Alarm_t alarms_list[MAX_ALARMS];
+
+/** @brief Current count of alarms in the list */
 static int alarms_count = 0;
+
+/** @brief Mutex to protect access to the alarms list */
 static SemaphoreHandle_t alarms_mutex = NULL;
 
-// Forward declaration
+/** @brief Forward declaration of the fill_water_to function */
 extern void fill_water_to(int32_t target_weight);
 
 /**
- * @brief Funkcja porównująca dwa czasy
+ * @brief Compares two time structures for equality.
  *
- * @param a Pierwszy czas
- * @param b Drugi czas
- * @return true jeśli są równe, false w przeciwnym razie
+ * This function checks if all components of the provided `struct tm` instances are equal.
+ *
+ * @param a Pointer to the first time structure.
+ * @param b Pointer to the second time structure.
+ * @return `true` if both times are equal, `false` otherwise.
  */
 static bool is_time_equal(const struct tm *a, const struct tm *b) {
     return (a->tm_year == b->tm_year) &&
@@ -40,7 +47,10 @@ static bool is_time_equal(const struct tm *a, const struct tm *b) {
 }
 
 /**
- * @brief Inicjalizacja modułu alarmów
+ * @brief Initializes the alarms module.
+ *
+ * This function creates a mutex to protect the alarms list and starts the FreeRTOS task
+ * responsible for monitoring and triggering alarms.
  */
 void alarms_init(void) {
     // Create mutex
@@ -56,10 +66,13 @@ void alarms_init(void) {
 }
 
 /**
- * @brief Dodanie alarmu
+ * @brief Adds an alarm to the alarms list.
  *
- * @param alarm Alarm do dodania
- * @return true jeśli sukces, false jeśli bufor jest pełny lub błąd
+ * This function adds a new alarm to the `alarms_list` if there is space available.
+ * It ensures thread-safe access using a mutex.
+ *
+ * @param alarm Pointer to the `Alarm_t` structure to be added.
+ * @return `true` if the alarm was successfully added, `false` if the list is full or an error occurred.
  */
 bool add_alarm(const Alarm_t *alarm) {
     if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) == pdTRUE) {
@@ -87,10 +100,13 @@ bool add_alarm(const Alarm_t *alarm) {
 }
 
 /**
- * @brief Usunięcie alarmu
+ * @brief Deletes an alarm from the alarms list based on its timestamp.
  *
- * @param timestamp Czas alarmu do usunięcia
- * @return true jeśli sukces, false jeśli nie znaleziono alarmu
+ * This function searches for an alarm matching the provided timestamp and removes it
+ * from the `alarms_list`. It ensures thread-safe access using a mutex.
+ *
+ * @param timestamp Pointer to the `struct tm` representing the time of the alarm to delete.
+ * @return `true` if the alarm was successfully deleted, `false` if not found or an error occurred.
  */
 bool delete_alarm(const struct tm *timestamp) {
     if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) == pdTRUE) {
@@ -126,7 +142,10 @@ bool delete_alarm(const struct tm *timestamp) {
 }
 
 /**
- * @brief Pobranie wszystkich alarmów i wysłanie ich przez MQTT
+ * @brief Retrieves all alarms and publishes them via MQTT.
+ *
+ * This function constructs a JSON payload containing all alarms in the `alarms_list`
+ * and publishes it to the MQTT topic `hydrapet0001/update/get/alarms`.
  */
 void get_alarms(void) {
     if (xSemaphoreTake(alarms_mutex, portMAX_DELAY) != pdTRUE) {
@@ -167,9 +186,13 @@ void get_alarms(void) {
 }
 
 /**
- * @brief Zadanie monitorujące alarmy
+ * @brief Task responsible for monitoring and triggering alarms.
  *
- * @param pvParameters Argument zadania
+ * This FreeRTOS task continuously checks the current time against the alarms in the `alarms_list`.
+ * When an alarm's time is due, it triggers the alarm by initiating the water filling process
+ * and removes the alarm from the list.
+ *
+ * @param pvParameters Argument passed to the task (unused).
  */
 void alarms_task(void *pvParameters) {
     while (1) {

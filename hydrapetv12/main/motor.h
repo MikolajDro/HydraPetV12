@@ -1,28 +1,36 @@
-/*
- * motor.h
- *
- *  Created on: 26 sty 2025
- *      Author: mikol
- */
+// motor.h
 
 #ifndef MAIN_MOTOR_H_
 #define MAIN_MOTOR_H_
 
+#include <stdbool.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-
-#include "main.h"
-#include "hx711.h"        // Odczyt wagi
-#include "driver/gpio.h"
-#include "esp_log.h"
-#include "esp_system.h"
-
+/**
+ * @brief Initializes the motor GPIO configuration.
+ *
+ * Configures the motor GPIO pin as an output and sets its initial state to OFF.
+ */
 void motor_init(void);
-void motor_on(void);
-void motor_off(void);
-bool get_motor_state();
 
+/**
+ * @brief Turns the motor on.
+ *
+ * Sets the motor GPIO pin to high, updating the motor state to ON.
+ */
+void motor_on(void);
+
+/**
+ * @brief Turns the motor off.
+ *
+ * Sets the motor GPIO pin to low, updating the motor state to OFF.
+ */
+void motor_off(void);
+
+/**
+ * @brief Retrieves the current state of the motor.
+ *
+ * @return `true` if the motor is ON, `false` otherwise.
+ */
+bool get_motor_state();
 
 #endif /* MAIN_MOTOR_H_ */

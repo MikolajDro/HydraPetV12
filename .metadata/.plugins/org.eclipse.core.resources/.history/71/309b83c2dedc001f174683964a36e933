@@ -1,0 +1,28 @@
+/*
+ * motor.h
+ *
+ *  Created on: 26 sty 2025
+ *      Author: mikol
+ */
+
+#ifndef MAIN_MOTOR_H_
+#define MAIN_MOTOR_H_
+
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+
+#include "main.h"
+#include "hx711.h"        // Odczyt wagi
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_system.h"
+
+void motor_init(void);
+void motor_on(void);
+void motor_off(void);
+bool get_motor_state();
+
+
+#endif /* MAIN_MOTOR_H_ */

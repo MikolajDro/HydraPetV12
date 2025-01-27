@@ -3,68 +3,97 @@
 #ifndef MQTT_H
 #define MQTT_H
 
-#include <stdint.h>   // Dodane dla int32_t
-#include <time.h>     // Dodane dla struct tm
-#include <stdbool.h>  // Dodane dla bool
+#include <stdint.h>   // For int32_t
+#include <time.h>     // For struct tm
+#include <stdbool.h>  // For bool
 
 /**
- * @brief Inicjalizacja klienta MQTT
+ * @brief Initializes the MQTT client.
+ *
+ * Configures the MQTT client with broker settings, registers event handlers,
+ * and starts the MQTT client.
  */
 void mqtt_init(void);
 
-
+/**
+ * @brief Publishes a message to a specific MQTT topic.
+ *
+ * Sends the provided payload to the designated MQTT topic.
+ *
+ * @param topic The MQTT topic to publish to.
+ * @param payload The message payload to publish.
+ */
 void mqtt_publish(const char *topic, const char *payload);
 
-
 /**
- * @brief Publikowanie pełnego zestawu danych co 10 sekund
+ * @brief Publishes all relevant data to a specific MQTT topic.
  *
- * @param weight Waga zmierzona
- * @param timestamp Znacznik czasu pomiaru
- * @param button_state Stan przycisku pair
- * @param led_state Stan diody LED
- * @param pin15_state Stan pinu 15 (silnik)
+ * Constructs a JSON payload containing the current weight, timestamp,
+ * button state, LED state, and motor state, then publishes it.
+ *
+ * @param weight The measured weight.
+ * @param timestamp The timestamp of the measurement.
+ * @param button_state The state of the user button.
+ * @param led_state The state of the LED.
+ * @param pin15_state The state of pin 15 (motor).
  */
 void mqtt_publish_all(int32_t weight, struct tm timestamp, bool button_state, bool led_state, bool pin15_state);
 
 /**
- * @brief Publikowanie stanu wody
+ * @brief Publishes the current water state to a specific MQTT topic.
  *
- * @param water_state Stan wody jako liczba całkowita
+ * Constructs a JSON payload with the water state and publishes it.
+ *
+ * @param water_state The current state of the water as an integer.
  */
 void mqtt_publish_water_state(int water_state);
 
 /**
- * @brief Publikowanie aktualnego czasu
+ * @brief Publishes the current system time to a specific MQTT topic.
  *
- * @param timestamp Znacznik czasu
+ * Constructs a JSON payload with the current time and publishes it.
+ *
+ * @param timestamp The current timestamp.
  */
 void mqtt_publish_current_time(struct tm timestamp);
 
 /**
- * @brief Ustawienie callbacka na odebrane wiadomości MQTT
+ * @brief Sets the callback function to handle incoming MQTT messages.
  *
- * @param callback Funkcja callback przyjmująca temat i wiadomość
+ * Assigns a user-defined callback function that will be invoked upon receiving MQTT messages.
+ *
+ * @param callback The callback function that takes the topic and message as parameters.
  */
 void mqtt_set_message_callback(void (*callback)(const char *, const char *));
 
 /**
- * @brief Typ funkcji callback do obsługi odebranych wiadomości MQTT
+ * @brief Type definition for the MQTT message callback function.
  *
- * @param topic Otrzymany temat
- * @param message Otrzymana wiadomość
+ * The callback function should accept two parameters: the topic and the message.
+ *
+ * @param topic The MQTT topic of the received message.
+ * @param message The MQTT message payload.
  */
 typedef void (*mqtt_callback_t)(const char *topic, const char *message);
 
-
 /**
- * @brief Callback do obsługi odebranych wiadomości MQTT
+ * @brief Callback function to handle incoming MQTT messages.
  *
- * @param topic Otrzymany temat
- * @param message Otrzymana wiadomość
+ * Determines the topic of the received message and invokes the appropriate handler.
+ *
+ * @param topic The MQTT topic of the received message.
+ * @param message The MQTT message payload.
  */
 void mqtt_message_handler(const char *topic, const char *message);
 
+/**
+ * @brief Initiates the process of filling water to a specified weight.
+ *
+ * Allocates memory for the task parameters and creates the FreeRTOS task
+ * responsible for monitoring and controlling the filling process.
+ *
+ * @param target_weight The desired weight to achieve in grams.
+ */
 void fill_water_to(int32_t target_weight);
 
 #endif // MQTT_H

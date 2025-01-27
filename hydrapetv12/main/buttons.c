@@ -5,20 +5,31 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "main.h"
 
+/** @brief Tag used for ESP logging */
 static const char *TAG = "BUTTONS";
 
-
+/** @brief GPIO number for the user button */
 #define USER_BUTTON_PIN  GPIO_NUM_4  // User button
 
+/** @brief Current state of the user button: false - released, true - pressed */
 static bool s_user_button_state = false;  // false - released, true - pressed
 
+/**
+ * @brief Retrieves the current state of the user button.
+ *
+ * @return `true` if the button is pressed, `false` otherwise.
+ */
 bool user_button_state(void)
 {
     return !gpio_get_level(USER_BUTTON_PIN);
 }
 
+/**
+ * @brief Initializes the user button GPIO configuration.
+ *
+ * This function configures the user button GPIO pin as an input with a pull-up resistor.
+ */
 void buttons_init(void)
 {    
     gpio_config_t io_conf_user_button = {
@@ -32,6 +43,14 @@ void buttons_init(void)
     ESP_LOGI(TAG, "Button initialized.");
 }
 
+/**
+ * @brief Task that monitors the user button state and handles events.
+ *
+ * This FreeRTOS task continuously checks the state of the user button.
+ * When the button state changes, it logs the event, blinks LEDs, and manages Wi-Fi reconnection.
+ *
+ * @param arg Parameter passed to the task (unused).
+ */
 void buttons_task(void *arg)
 {
     bool last_state = true;
@@ -42,17 +61,17 @@ void buttons_task(void *arg)
             if (current_state == true) {
                 ESP_LOGI(TAG, "User Button PRESSED!");
 
-				led_blink_pair();
+                led_blink_pair();
 
-				while(!is_wifi_connected()){
-	                // Ponowna próba połączenia z internetem
-	                if (wifi_reconnect()) {
-	                    ESP_LOGI(TAG, "Successfully connected to Wi-Fi");
-	                } else {
-	                    ESP_LOGI(TAG, "Connection not established, trying connect again");
-	                }
-	                vTaskDelay(pdMS_TO_TICKS(200));
-	            }
+                while(!is_wifi_connected()){
+                    // Retry connecting to the internet
+                    if (wifi_reconnect()) {
+                        ESP_LOGI(TAG, "Successfully connected to Wi-Fi");
+                    } else {
+                        ESP_LOGI(TAG, "Connection not established, trying connect again");
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(200));
+                }
 
             } else {
                 ESP_LOGI(TAG, "Pair Button RELEASED!");

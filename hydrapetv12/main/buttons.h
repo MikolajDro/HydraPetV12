@@ -4,21 +4,26 @@
 #include <stdbool.h>
 
 /**
- * @brief Inicjalizacja przycisków
+ * @brief Initializes the buttons.
+ *
+ * Configures the GPIO pins associated with the buttons.
  */
 void buttons_init(void);
 
 /**
- * @brief Zadanie obsługujące przycisk pair
+ * @brief Task that handles the pair button.
  *
- * @param arg argument
+ * Monitors the pair button state and performs actions based on button events.
+ *
+ * @param arg Argument passed to the task.
  */
 void buttons_task(void *arg);
 
 /**
- * @brief Pobranie stanu przycisku pair
+ * @brief Retrieves the state of the pair button.
+ *
+ * @return `true` if the pair button is pressed, `false` otherwise.
  */
 bool user_button_state(void);
-
 
 #endif // BUTTONS_H

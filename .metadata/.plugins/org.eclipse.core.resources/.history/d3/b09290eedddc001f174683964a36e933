@@ -1,0 +1,338 @@
+// hx711.c
+
+#include "hx711.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include <time.h>
+#include <string.h>
+#include "esp_log.h"
+#include "mqtt.h"
+#include "motor.h"
+#include "led.h"
+
+#define HX711_DATA_PIN GPIO_NUM_21  // Pin DOUT tensometru HX711
+#define HX711_SCK_PIN  GPIO_NUM_19  // Pin SCK tensometru HX711
+
+typedef struct {
+    int32_t target_weight;
+} fill_water_params_t;
+
+// Definicja bufora kołowego
+static Measurement measurement_buffer[MEASUREMENT_BUFFER_SIZE];
+static size_t buffer_head = 0; // Indeks do zapisu
+static size_t buffer_tail = 0; // Indeks do odczytu
+static size_t buffer_count = 0; // Liczba aktualnych pomiarów
+
+// Mutex do ochrony bufora
+static SemaphoreHandle_t buffer_mutex = NULL;
+static SemaphoreHandle_t hx711_mutex = NULL;
+
+static const char *TAG = "HX711";
+
+static int32_t tare_offset = 0;
+
+void hx711_init(void)
+{
+    gpio_config_t io_conf;
+
+    // Konfiguracja pinu DATA (DOUT) jako wejście
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << HX711_DATA_PIN);
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    // Konfiguracja pinu SCK jako wyjście
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << HX711_SCK_PIN);
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    // Ustawienie pinu SCK w stan niski
+    gpio_set_level(HX711_SCK_PIN, 0);
+
+    // Inicjalizacja mutexów
+    if (buffer_mutex == NULL)
+    {
+        buffer_mutex = xSemaphoreCreateMutex();
+        if (buffer_mutex == NULL)
+        {
+            ESP_LOGE(TAG, "Nie udało się utworzyć buffer_mutex");
+        }
+    }
+
+    if (hx711_mutex == NULL)
+    {
+        hx711_mutex = xSemaphoreCreateMutex();
+        if (hx711_mutex == NULL)
+        {
+            ESP_LOGE(TAG, "Nie udało się utworzyć hx711_mutex");
+        }
+    }
+
+    tare();
+}
+
+static int32_t read_raw(void)
+{
+    uint32_t count = 0;
+    uint8_t i;
+
+    // Oczekiwanie, aż pin DATA przejdzie w stan niski przed rozpoczęciem pomiaru
+    uint32_t timeout = 1000;  // Timeout w milisekundach
+    TickType_t start_tick = xTaskGetTickCount();
+
+    while (gpio_get_level(HX711_DATA_PIN))
+    {
+        vTaskDelay(pdMS_TO_TICKS(1));  // Opóźnienie 1 ms
+        if ((xTaskGetTickCount() - start_tick) * portTICK_PERIOD_MS >= timeout)
+        {
+            // Wystąpił timeout
+            ESP_LOGE(TAG, "Timeout oczekiwania na HX711");
+            return 0;  // Lub inna obsługa błędu
+        }
+    }
+
+    // Pobranie mutexu
+    if (xSemaphoreTake(hx711_mutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+        for (i = 0; i < 24; i++)
+        {
+            gpio_set_level(HX711_SCK_PIN, 1);
+            esp_rom_delay_us(1);  // Krótka przerwa
+
+            count = count << 1;
+            gpio_set_level(HX711_SCK_PIN, 0);
+            esp_rom_delay_us(1);
+
+            if (gpio_get_level(HX711_DATA_PIN))
+            {
+                count++;
+            }
+        }
+        // Ustawienie wzmacniania na 128x (1 dodatkowy impuls SCK)
+        gpio_set_level(HX711_SCK_PIN, 1);
+        esp_rom_delay_us(1);
+        gpio_set_level(HX711_SCK_PIN, 0);
+        esp_rom_delay_us(1);
+
+        // Zwolnienie mutexu
+        xSemaphoreGive(hx711_mutex);
+    }
+    else
+    {
+        // Nie udało się pobrać mutexu
+        ESP_LOGE(TAG, "Nie udało się pobrać hx711_mutex");
+        return 0;  // Lub inna obsługa błędu
+    }
+
+    // Konwersja wyniku na liczbę ze znakiem
+    if (count & 0x800000)
+    {
+        count |= 0xFF000000;
+    }
+    else
+    {
+        count &= 0x00FFFFFF;
+    }
+
+    return (int32_t)count;
+}
+
+int32_t get_water_weight(void)
+{
+    int32_t raw_value = read_raw();
+    
+    float tmp=0;
+    
+    int32_t weight = raw_value - tare_offset;
+    
+    tmp = (float )weight / 1000;
+    
+    weight = (uint32_t) tmp;
+    
+
+    // Dodaj pomiar do bufora kołowego
+    add_measurement(weight);
+
+    return weight;
+}
+
+void tare(void)
+{
+    tare_offset = read_raw();
+}
+
+void add_measurement(int32_t weight)
+{
+    // Pobierz aktualny czas
+    time_t now = 0;
+    struct tm timeinfo = {0};
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    // Utwórz pomiar
+    Measurement measurement;
+    measurement.weight = weight;
+    measurement.timestamp = timeinfo;
+
+    // Dodaj pomiar do bufora kołowego w sposób bezpieczny dla wątków
+    if (xSemaphoreTake(buffer_mutex, portMAX_DELAY) == pdTRUE)
+    {
+        measurement_buffer[buffer_head] = measurement;
+        buffer_head = (buffer_head + 1) % MEASUREMENT_BUFFER_SIZE;
+
+        if (buffer_count < MEASUREMENT_BUFFER_SIZE)
+        {
+            buffer_count++;
+        }
+        else
+        {
+            // Nadpisanie najstarszego pomiaru, więc przesuwamy tail
+            buffer_tail = (buffer_tail + 1) % MEASUREMENT_BUFFER_SIZE;
+        }
+
+        xSemaphoreGive(buffer_mutex);
+    }
+}
+
+int read_measurement(Measurement *measurement)
+{
+    if (xSemaphoreTake(buffer_mutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (buffer_count == 0)
+        {
+            // Brak pomiarów do odczytu
+            xSemaphoreGive(buffer_mutex);
+            return 0; // Niepowodzenie
+        }
+
+        // Pobierz najstarszy pomiar
+        *measurement = measurement_buffer[buffer_tail];
+        buffer_tail = (buffer_tail + 1) % MEASUREMENT_BUFFER_SIZE;
+        buffer_count--;
+
+        xSemaphoreGive(buffer_mutex);
+        return 1; // Sukces
+    }
+
+    return 0; // Niepowodzenie
+}
+
+void get_all_measurements(void)
+{
+    // Opcjonalnie, funkcja do odczytu wszystkich pomiarów
+    while (1)
+    {
+        Measurement m;
+        if (read_measurement(&m))
+        {
+            printf("Waga: %ld, Czas: %04d-%02d-%02dT%02d:%02d:%02d\n",
+                   m.weight,
+                   m.timestamp.tm_year + 1900, m.timestamp.tm_mon + 1, m.timestamp.tm_mday,
+                   m.timestamp.tm_hour, m.timestamp.tm_min, m.timestamp.tm_sec);
+        }
+        else
+        {
+            // Brak więcej pomiarów
+            break;
+        }
+    }
+}
+
+/**
+ * @brief Zadanie FreeRTOS do dolewania wody do określonej wagi
+ *
+ * @param pvParameters Parametry zadania
+ */
+static void fill_water_task(void *pvParameters)
+{
+    fill_water_params_t *params = (fill_water_params_t *)pvParameters;
+    int32_t target_weight = params->target_weight;
+    free(params); // Zwolnienie pamięci, jeśli alokowano dynamicznie
+
+    ESP_LOGI(TAG, "Rozpoczęcie dolewania wody do wagi: %ld g", target_weight);
+
+    int32_t initial_weight = get_water_weight();
+    if (initial_weight >= target_weight)
+    {
+        ESP_LOGI(TAG, "Aktualna waga (%ld g) jest już większa lub równa docelowej (%ld g).", initial_weight, target_weight);
+        vTaskDelete(NULL); // Zakończenie zadania
+        return;
+    }
+
+    // Włącz motor
+    motor_on();
+
+    TickType_t start_tick = xTaskGetTickCount();
+    int32_t last_weight = initial_weight;
+    bool error = false;
+
+    while (1)
+    {
+        int32_t current_weight = get_water_weight();
+
+        // Sprawdzenie, czy osiągnięto docelową wagę
+        if (current_weight >= target_weight)
+        {
+            ESP_LOGI(TAG, "Osiągnięto docelową wagę: %ld g", current_weight);
+            motor_off();
+            break;
+        }
+
+        // Sprawdzenie, czy waga zwiększyła się o co najmniej 10 g w ciągu ostatnich 3 sekund
+        TickType_t current_tick = xTaskGetTickCount();
+        TickType_t elapsed_ticks = current_tick - start_tick;
+        uint32_t elapsed_ms = elapsed_ticks * portTICK_PERIOD_MS;
+
+        if (elapsed_ms >= 3000)
+        {
+            if ((current_weight - last_weight) < 10)
+            {
+                ESP_LOGE(TAG, "Brak znaczącego przyrostu wagi w ciągu 3 sekund. Zatrzymanie motoru i miganie diodą.");
+                motor_off();
+
+				led_blink_pair();
+
+                error = true;
+                break;
+            }
+            else
+            {
+                // Aktualizacja wartości wagi i resetowanie timera
+                last_weight = current_weight;
+                start_tick = current_tick;
+            }
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(100)); // Opóźnienie 100 ms przed kolejnym odczytem
+    }
+
+    if (!error)
+    {
+        ESP_LOGI(TAG, "Proces dolewania wody zakończony pomyślnie.");
+    }
+
+    vTaskDelete(NULL); // Zakończenie zadania
+}
+
+void fill_water_to(int32_t target_weight)
+{
+    // Alokowanie pamięci na parametry zadania
+    fill_water_params_t *params = malloc(sizeof(fill_water_params_t));
+    if (params == NULL)
+    {
+        ESP_LOGE(TAG, "Nie udało się alokować pamięci na parametry zadania dolewania wody.");
+        return;
+    }
+
+    params->target_weight = target_weight;
+
+    // Tworzenie zadania do dolewania wody
+    xTaskCreate(fill_water_task, "fill_water_task", 4096, (void *)params, 5, NULL);
+}

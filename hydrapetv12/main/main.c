@@ -1,3 +1,5 @@
+// main.c
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -15,70 +17,83 @@
 #include "esp_event.h"
 #include "esp_wifi.h"
 
-#include "mqtt.h"         // Twój moduł MQTT
-#include "hx711.h"        // Odczyt wagi
-#include "led.h"          // Zarządzanie diodą (led_init, led_set_state itp.)
-#include "buttons.h"      // Odczyt stanu przycisków
-#include "driver/uart.h"  // Jeśli używasz UART
+#include "mqtt.h"         
+#include "hx711.h"        
+#include "led.h"          
+#include "buttons.h"      
+#include "driver/uart.h"  
 #include "wifi.h"
 #include "motor.h"
 #include "alarms.h"
 #include "water_level_sensor.h"
+#include "config.h"
 
 static const char *TAG = "MAIN";
 
-// Definicje pinów (jeśli nie masz w sdkconfig)
-#define PUBLISH_ALL_DURATION_TIME	60 * 1000 // 1 minute between refresh
-
-
+/**
+ * @brief Task responsible for publishing sensor data periodically.
+ *
+ * This FreeRTOS task runs indefinitely, performing the following actions in a loop:
+ * 1. Checks if the device is connected to Wi-Fi.
+ * 2. If connected, reads the current weight from the HX711 sensor.
+ * 3. Retrieves the current system time.
+ * 4. Publishes the collected data to various MQTT topics.
+ * 5. Blinks an LED for visual feedback.
+ * 6. Waits for the defined duration before repeating the process.
+ *
+ * @param pvParameters Pointer to task parameters (unused).
+ */
 static void publish_task(void *pvParameters)
 {
     while (true)
     {
-        // Sprawdź, czy jesteśmy połączeni do Wi-Fi
+        // Check if connected to Wi-Fi
         while (!is_wifi_connected())
         {
             ESP_LOGW(TAG, "Wi-Fi connection not established yet");
             vTaskDelay(pdMS_TO_TICKS(2000)); 
         }
 
-        // Jesteśmy połączeni, odczytujemy dane
-        int32_t weight = get_water_weight();  // z HX711
+        // Connected to Wi-Fi, proceed to read data
+        int32_t weight = get_water_weight();  // Read weight from HX711
         time_t now = 0;
         time(&now);
         struct tm timeinfo = {0};
         localtime_r(&now, &timeinfo);
 
-
-        // Wysyłamy na topic "hydrapet/get/all"
+        // Publish to "hydrapet0001/hydrapetinfo/all"
         mqtt_publish_all(weight, 
-        				timeinfo, 
-        				user_button_state(), 
-        				led_get_state(), 
-        				get_motor_state());
+                        timeinfo, 
+                        user_button_state(), 
+                        led_get_state(), 
+                        get_motor_state());
 
-
-        // Publikujemy stan wody na temat hydrapet0001/hydrapetinfo/water
+        // Publish water state to "hydrapet0001/hydrapetinfo/water"
         mqtt_publish_water_state(weight);
 
-        // Publikujemy aktualny czas na temat hydrapet0001/hydrapetinfo/time
+        // Publish current time to "hydrapet0001/hydrapetinfo/time"
         mqtt_publish_current_time(timeinfo);
         
-        
+        // Publish water tank level status
         mqtt_publish_water_tank_level();
 
-        // Po publikacji mignij diodą
+        // Blink LED after publishing
         led_blink_once();
 
-        // Czekaj 10 sekund
+        // Wait for the defined duration before the next publish cycle
         vTaskDelay(pdMS_TO_TICKS(PUBLISH_ALL_DURATION_TIME));
     }
 }
 
-
+/**
+ * @brief Application entry point.
+ *
+ * This function initializes all necessary modules and peripherals, sets up MQTT callbacks,
+ * and creates FreeRTOS tasks for publishing data, monitoring water level sensors, and handling buttons.
+ */
 void app_main(void)
 {
-    // Inicjalizacja NVS
+    // Initialize NVS (Non-Volatile Storage)
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
         ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -87,63 +102,63 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    // Inicjalizacja Wi-Fi
-    set_is_wifi_connected( wifi_init_sta() );
-
-	esp_log_level_set("wifi", ESP_LOG_ERROR);
-
-
-    // Inicjalizacja diody
+    // Initialize LED module
     led_init();
     
-    
-	int i=0;
-    // Sprawdź, czy udało się połączyć z Wi-Fi
-    while(!is_wifi_connected())
-    {
-		
-        ESP_LOGW(TAG, "Connection not established, trying again...");
-        wifi_reconnect();
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        led_blink_once();
-        if(i > 60)
-        {
-			i++;
-			while(1){
-				;
-			}
-		}
-    }
+    // Set Wi-Fi logging level to ERROR to reduce verbosity
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
 
-    // Inicjalizacja MQTT
+    // Initialize Wi-Fi connection
+    wifi_init();    
+
+    // Initialize MQTT client
     mqtt_init();
     
+    // Initialize motor control
     motor_init();
     
-    // Inicjalizacja alarmów
+    // Initialize alarms module
     alarms_init();
 
-    // Inicjalizacja przycisków
+    // Initialize buttons module
     buttons_init();
 
-    // Inicjalizacja HX711
+    // Initialize HX711 weight sensor
     hx711_init();
 
-    // Utworzenie zadań
-    // 1) Zadanie publikujące co 10 sekund
+    // Create tasks
+
+    /**
+     * @brief Task for publishing sensor data periodically.
+     *
+     * Publishes weight, time, button state, LED state, and motor state every minute.
+     */
     xTaskCreate(publish_task, "publish_task", 4096, NULL, 5, NULL);
 
-    // Ustawiamy callback do obsługi odebranych wiadomości MQTT
+    /**
+     * @brief Task for handling MQTT incoming messages.
+     *
+     * Sets up the callback function to handle messages received on subscribed MQTT topics.
+     */
     mqtt_set_message_callback(mqtt_message_handler);
 
-    // 2) Zadanie obsługujące przycisk pair
+    /**
+     * @brief Task for monitoring the water level sensor.
+     *
+     * Continuously monitors the water level and publishes status updates when the water level drops below 30%.
+     */
     xTaskCreate(water_level_sensor_task, "water_level_sensor_task", 2048, NULL, 5, NULL);
     
+    /**
+     * @brief Task for handling user button interactions.
+     *
+     * Monitors the state of user buttons and performs actions based on button presses.
+     */
     xTaskCreate(buttons_task, "user_button_task", 2048, NULL, 5, NULL);
     
-    // Główna pętla nie robi nic – wszystko jest w zadaniach
+    // Infinite loop to keep the main task alive
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(10000000000));
+        vTaskDelay(pdMS_TO_TICKS(10000000000)); // Delay for an extended period
     }
 }

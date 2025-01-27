@@ -1,0 +1,67 @@
+// motor.c
+
+#include "motor.h"
+
+/** @brief GPIO number for the motor */
+#define MOTOR_PIN       GPIO_NUM_15 /**< @brief Pin 15 – silnik */
+
+/** @brief Motor states */
+#define ON              1          /**< @brief Motor ON state */
+#define OFF             !ON        /**< @brief Motor OFF state */
+
+static const char *TAG = "MOTOR";
+
+/** @brief Current state of the motor: OFF by default */
+static bool motor_state = OFF;
+
+/**
+ * @brief Initializes the motor GPIO configuration.
+ *
+ * Configures the motor GPIO pin as an output and sets its initial state to OFF.
+ */
+void motor_init(void)
+{
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << MOTOR_PIN),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = false,
+        .pull_down_en = false,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_conf);
+    ESP_LOGI(TAG, "Motor initialized.");
+}
+
+/**
+ * @brief Turns the motor on.
+ *
+ * Sets the motor GPIO pin to high, updating the motor state to ON.
+ */
+void motor_on(void)
+{
+    motor_state = ON;
+    gpio_set_level(MOTOR_PIN, motor_state);
+    ESP_LOGI(TAG, "Motor power on.");
+}
+
+/**
+ * @brief Turns the motor off.
+ *
+ * Sets the motor GPIO pin to low, updating the motor state to OFF.
+ */
+void motor_off(void)
+{
+    motor_state = OFF;
+    gpio_set_level(MOTOR_PIN, motor_state);
+    ESP_LOGI(TAG, "Motor power off.");
+}
+
+/**
+ * @brief Retrieves the current state of the motor.
+ *
+ * @return `true` if the motor is ON, `false` otherwise.
+ */
+bool get_motor_state()
+{
+    return motor_state;
+}

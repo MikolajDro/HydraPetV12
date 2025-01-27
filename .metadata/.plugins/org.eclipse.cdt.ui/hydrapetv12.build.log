@@ -2,9 +2,9 @@
 +--------------------------------------------------------------------------------+
 | Memory Type/Section | Used [bytes] | Used [%] | Remain [bytes] | Total [bytes] |
 |---------------------+--------------+----------+----------------+---------------|
-| Flash Code          |       896650 |     5.34 |       15880534 |      16777184 |
-|    .text            |       725086 |     4.32 |                |               |
-|    .rodata          |       171308 |     1.02 |                |               |
+| Flash Code          |       896210 |     5.34 |       15880974 |      16777184 |
+|    .text            |       725134 |     4.32 |                |               |
+|    .rodata          |       170820 |     1.02 |                |               |
 |    .appdesc         |          256 |      0.0 |                |               |
 | DIRAM               |       218888 |    48.41 |         233224 |        452112 |
 |    .bss             |       103056 |    22.79 |                |               |
@@ -14,4 +14,4 @@
 |    .rtc_reserved    |           24 |     0.15 |                |               |
 +--------------------------------------------------------------------------------+
 C:\Espressif\python_env\idf5.3_py3.11_env\Scripts\python.exe C:/Espressif/frameworks/esp-idf-v5.3.1/\components\partition_table\gen_esp32part.py C:\Users\mikol\OneDrive\Pulpit\Esp\hydrapetv12\build\partition_table\partition-table.bin
-Total time taken to build the project: 362 ms
+Total time taken to build the project: 9 360 ms
